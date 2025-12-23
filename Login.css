@@ -1,0 +1,173 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+}
+
+body {
+    height: 100vh;
+    width: 100%;
+}
+
+.container {
+    display: flex;
+    height: 100%;
+    width: 100%;
+}
+
+/* --- Left Panel Styling --- */
+.left-panel {
+    flex: 1;
+    background-color: #243b55;
+    /* Simulate the warehouse overlay */
+    background-image: linear-gradient(rgba(36, 59, 85, 0.9), rgba(36, 59, 85, 0.9)), url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.logo {
+    width: 350px;
+    height: auto;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+}
+
+/* --- Right Panel Styling --- */
+.right-panel {
+    flex: 1;
+    background-color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.login-wrapper {
+    width: 100%;
+    max-width: 480px; /* Slightly wider for the description text */
+}
+
+/* Typography */
+.header-text {
+    margin-bottom: 2rem;
+}
+
+.header-text h1 {
+    color: #243b55;
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.header-text p {
+    color: #666;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+/* Description specific adjustment */
+.description-text {
+    color: #555;
+    font-size: 1rem;
+}
+
+/* Form Elements */
+.input-group {
+    margin-bottom: 1.5rem;
+}
+
+.input-group label {
+    display: block;
+    font-weight: 700; /* Bold label as per image */
+    color: #000;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #777; /* Slightly darker border as per image */
+    border-radius: 8px;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.input-group input:focus {
+    border-color: #243b55;
+}
+
+.input-group input::placeholder {
+    color: #aaa;
+}
+
+/* Buttons and Links */
+
+/* Style for the Forgot Password page layout */
+.form-footer-split {
+    display: flex;
+    justify-content: space-between; /* Pushes button left, link right */
+    align-items: center;
+    margin-top: 2rem;
+}
+
+.signin-btn {
+    background-color: #2c4a6e;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    font-size: 1rem;
+    font-weight: 500;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.signin-btn:hover {
+    background-color: #1e3552;
+}
+
+.resend-link {
+    color: #333; /* Dark grey/black */
+    text-decoration: none;
+    font-weight: 700; /* Bold text */
+    font-size: 0.95rem;
+}
+
+.resend-link:hover {
+    text-decoration: underline;
+}
+
+/* Style for the Login page layout (Kept for compatibility) */
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 2rem;
+}
+
+.forgot-pass {
+    color: #243b55;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+/* --- Mobile Responsiveness --- */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+    
+    .left-panel {
+        display: none;
+    }
+    
+    .right-panel {
+        padding: 20px;
+    }
+}
