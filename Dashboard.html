@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - ScrapTrack</title>
+    <link rel="stylesheet" href="Dashboard.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <img src="logo.png" alt="ScrapTrack Logo" class="logo-icon">
+            <span class="logo-text">ScrapTrack</span>
+        </div>
+
+        <nav class="nav-menu">
+            <div class="nav-section">
+                <p class="nav-label">General</p>
+                <a href="Dashboard.html" class="nav-item active">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="Inventory.html" class="nav-item">
+                    <span class="nav-icon">📦</span>
+                    <span>Inventory</span>
+                </a>
+                <a href="Transaction.html" class="nav-item">
+                    <span class="nav-icon">💳</span>
+                    <span>Transaction</span>
+                </a>
+                <a href="TransactionRecords.html" class="nav-item">
+                    <span class="nav-icon">📋</span>
+                    <span>Transaction Records</span>
+                </a>
+                <a href="EmployeeManagement.html" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>Employee Management</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <p class="nav-label">Settings</p>
+                <a href="AccountSettings.html" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Account Settings</span>
+                </a>
+                <a href="logout.php" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span>Log Out</span>
+                </a>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <img src="logo.png" alt="ScrapTrack" class="footer-logo">
+            <span class="footer-text">ScrapTrack</span>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <h1>Welcome Back, <span class="username">ExoticNellie69</span></h1>
+            <p class="subtitle">Here's what's happening in your junk shop today</p>
+        </header>
+
+        <!-- Stats Cards -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <p class="stat-label">Today's Revenue</p>
+                        <h2 class="stat-value">₱69.00</h2>
+                        <p class="stat-sub">Total Revenue</p>
+                    </div>
+                    <div class="stat-icon">💰</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <p class="stat-label">Total No. of Items</p>
+                        <h2 class="stat-value">89</h2>
+                        <p class="stat-sub">In Stock</p>
+                    </div>
+                    <div class="stat-icon">📦</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <p class="stat-label">Transactions Today</p>
+                        <h2 class="stat-value">2</h2>
+                        <p class="stat-sub">Total Transactions</p>
+                    </div>
+                    <div class="stat-icon">💳</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-header">
+                    <div>
+                        <p class="stat-label">Most Weighted Item</p>
+                        <h2 class="stat-value">65 kg</h2>
+                        <p class="stat-sub">In Stock</p>
+                    </div>
+                    <div class="stat-icon">⚖️</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Charts and Actions Row -->
+        <section class="content-row">
+            <!-- Revenue Chart -->
+            <div class="chart-card large">
+                <div class="card-header">
+                    <h3>Revenue & Expense Trend (7 days)</h3>
+                    <button class="btn-view">View More</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="actions-card">
+                <h3>Quick Actions</h3>
+                <div class="actions-grid">
+                    <button class="action-btn">
+                        <span class="action-icon">➕</span>
+                        <span>New Transaction</span>
+                    </button>
+                    <button class="action-btn">
+                        <span class="action-icon">📝</span>
+                        <span>Add Item</span>
+                    </button>
+                    <button class="action-btn">
+                        <span class="action-icon">👤</span>
+                        <span>New Customer</span>
+                    </button>
+                    <button class="action-btn">
+                        <span class="action-icon">👷</span>
+                        <span>New Employee</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recent Transactions and Weekly Chart -->
+        <section class="content-row">
+            <!-- Recent Transactions -->
+            <div class="transactions-card">
+                <div class="card-header">
+                    <h3>Recent Transactions</h3>
+                    <button class="btn-view">View All</button>
+                </div>
+                <div class="transaction-list">
+                    <div class="transaction-item">
+                        <div class="transaction-icon">📦</div>
+                        <div class="transaction-info">
+                            <p class="transaction-title">Bought Item</p>
+                            <p class="transaction-detail">Tin Cans • 10 pcs</p>
+                        </div>
+                        <span class="transaction-time">5 minutes ago</span>
+                    </div>
+                    <div class="transaction-item">
+                        <div class="transaction-icon">💰</div>
+                        <div class="transaction-info">
+                            <p class="transaction-title">Sold Item</p>
+                            <p class="transaction-detail">Paper Boxes • 23 kg</p>
+                        </div>
+                        <span class="transaction-time">5 minutes ago</span>
+                    </div>
+                    <div class="transaction-item">
+                        <div class="transaction-icon">👤</div>
+                        <div class="transaction-info">
+                            <p class="transaction-title">Recent Customer</p>
+                            <p class="transaction-detail">Christine Candasan</p>
+                        </div>
+                        <span class="transaction-time">5 minutes ago</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weekly Transactions Chart -->
+            <div class="chart-card">
+                <div class="card-header">
+                    <h3>Weekly Transactions</h3>
+                    <span class="total-badge">45 Total</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Bottom Section -->
+        <section class="bottom-section">
+            <div class="section-header">
+                <h2>Here's what the charts talks about</h2>
+                <div class="filters">
+                    <select class="filter-select">
+                        <option>This Day (December 23, 2025)</option>
+                        <option>This Week</option>
+                        <option>This Month</option>
+                        <option>This Year</option>
+                    </select>
+                    <select class="filter-select">
+                        <option>Highest to Lowest</option>
+                        <option>Lowest to Highest</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Net Profit Chart -->
+            <div class="profit-card">
+                <div class="card-header">
+                    <h3>Net Profit</h3>
+                    <h2 class="profit-value">₱67,676,767.00</h2>
+                </div>
+                <div class="chart-container large">
+                    <canvas id="profitChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Bottom Row -->
+            <section class="content-row">
+                <!-- Top 5 Items -->
+                <div class="top-items-card">
+                    <div class="card-header">
+                        <h3>Top 5 Items by Sale</h3>
+                        <button class="btn-view">View All</button>
+                    </div>
+                    <div class="items-list">
+                        <div class="item-row">
+                            <div class="item-info">
+                                <span class="item-icon">🥫</span>
+                                <div>
+                                    <p class="item-name">Tin Cans</p>
+                                    <p class="item-detail">438 pcs</p>
+                                </div>
+                            </div>
+                            <span class="item-price">₱6,942.00</span>
+                        </div>
+                        <div class="item-row">
+                            <div class="item-info">
+                                <span class="item-icon">📄</span>
+                                <div>
+                                    <p class="item-name">White Paper</p>
+                                    <p class="item-detail">294 kg</p>
+                                </div>
+                            </div>
+                            <span class="item-price">₱4,708.00</span>
+                        </div>
+                        <div class="item-row">
+                            <div class="item-info">
+                                <span class="item-icon">🔩</span>
+                                <div>
+                                    <p class="item-name">Metal</p>
+                                    <p class="item-detail">203 kg</p>
+                                </div>
+                            </div>
+                            <span class="item-price">₱4,671.00</span>
+                        </div>
+                        <div class="item-row">
+                            <div class="item-info">
+                                <span class="item-icon">📦</span>
+                                <div>
+                                    <p class="item-name">Cardboard</p>
+                                    <p class="item-detail">171 kg</p>
+                                </div>
+                            </div>
+                            <span class="item-price">₱2,056.00</span>
+                        </div>
+                        <div class="item-row">
+                            <div class="item-info">
+                                <span class="item-icon">🍾</span>
+                                <div>
+                                    <p class="item-name">Plastic Bottles</p>
+                                    <p class="item-detail">644 pcs</p>
+                                </div>
+                            </div>
+                            <span class="item-price">₱2,903.00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inventory by Weight -->
+                <div class="inventory-card">
+                    <div class="card-header">
+                        <h3>Inventory by Weight (Top 5)</h3>
+                        <button class="btn-view">View All</button>
+                    </div>
+                    <div class="inventory-content">
+                        <div class="pie-chart">
+                            <canvas id="inventoryPie"></canvas>
+                            <div class="pie-center">
+                                <p class="pie-label">Total:</p>
+                                <p class="pie-value">1,325 kg</p>
+                            </div>
+                        </div>
+                        <div class="inventory-legend">
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: #E8B4F5;"></span>
+                                <span>White Paper</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: #7DD3FC;"></span>
+                                <span>Cardboard Box</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: #FDE047;"></span>
+                                <span>Tin Cans</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: #60A5FA;"></span>
+                                <span>Plastic Bottles</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-color" style="background: #A78BFA;"></span>
+                                <span>Metals</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script src="dashboard.js"></script>
+</body>
+</html>
