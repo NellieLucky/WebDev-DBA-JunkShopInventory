@@ -117,7 +117,7 @@ function handleTransactionClick(item) {
 }
 
 // Handle top item clicks
-function handleItemClick(row) {
+function handleItemClick(row) { //Example ng query, baguhin nalang yung name
     const itemName = row.querySelector('.item-name').textContent;
     const itemDetail = row.querySelector('.item-detail').textContent;
     const itemPrice = row.querySelector('.item-price').textContent;
@@ -196,9 +196,16 @@ function createProfitChart() {
     const height = canvas.height = 400;
     
     const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const revenue = [20000, 50000, 60000, 65000, 30000, 75000, 100000, 80000, 100000, 70000, 85000, 95000];
+    const revenue = [20000, 55000, 60000, 65000, 30000, 75000, 100000, 80000, 100000, 70000, 85000, 95000];
     const expense = [10000, 18000, 12000, 20000, 25000, 60000, 70000, 35000, 65000, 55000, 75000, 45000];
-    
+    const totalRevenue = revenue.reduce((sum, value) => sum + value, 0);
+    const totalExpense = expense.reduce((sum, value) => sum + value, 0);
+    const totalProfit = totalRevenue - totalExpense;
+    const profitElement = document.querySelector('.profit-value');
+    if (profitElement) {
+        profitElement.textContent = `₱${totalProfit.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
     drawLineChart(ctx, width, height, labels, revenue, expense);
 }
 
