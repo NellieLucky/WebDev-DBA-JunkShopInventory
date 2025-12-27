@@ -179,6 +179,11 @@ function createWeeklyChart() {
     
     const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const data = [8, 12, 16, 20, 18, 28, 24];
+    const totalTransactions = data.reduce((sum, value) => sum + value, 0);
+    const transactionElement = document.querySelector('.total-badge'); // Kukuhain niya yung may name na class na ito from html
+    if (transactionElement) {
+        transactionElement.textContent = totalTransactions.toString();
+    }
     
     drawBarChart(ctx, width, height, labels, data);
 }
@@ -201,7 +206,7 @@ function createProfitChart() {
     const totalRevenue = revenue.reduce((sum, value) => sum + value, 0);
     const totalExpense = expense.reduce((sum, value) => sum + value, 0);
     const totalProfit = totalRevenue - totalExpense;
-    const profitElement = document.querySelector('.profit-value');
+    const profitElement = document.querySelector('.profit-value'); // Kukuhain niya yung may name na class na ito from html
     if (profitElement) {
         profitElement.textContent = `₱${totalProfit.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
@@ -222,9 +227,14 @@ function createInventoryPieChart() {
     canvas.width = size;
     canvas.height = size;
     
-    const data = [400, 300, 250, 200, 175]; // kg
+    const data = [400, 300, 250, 200, 75]; // kg
     const colors = ['#A78BFA', '#7DD3FC', '#FDE047', '#60A5FA', '#E8B4F5'];
-    
+    const totalWeight = data.reduce((sum, value) => sum + value, 0);
+    const weightElement = document.querySelector('.pie-value'); // Kukuhain niya yung may name na class na ito from html
+    if (weightElement) {
+        weightElement.textContent = `${totalWeight.toLocaleString()} kg`;
+    }
+
     drawDonutChart(ctx, size, data, colors);
 }
 
