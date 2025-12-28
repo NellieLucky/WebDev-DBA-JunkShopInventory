@@ -14,7 +14,7 @@ body {
 /* Sidebar */
 .sidebar {
     width: 250px;
-    background: #2d3748;
+    background: #3a4556;
     color: white;
     display: flex;
     flex-direction: column;
@@ -40,6 +40,7 @@ body {
 .logo-text {
     font-size: 20px;
     font-weight: 700;
+    color: white;
 }
 
 .nav-menu {
@@ -53,36 +54,48 @@ body {
 
 .nav-label {
     color: #a0aec0;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     padding: 0 20px;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
 }
 
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 20px;
-    color: #e2e8f0;
+    gap: 14px;
+    padding: 14px 20px;
+    color: white;
     text-decoration: none;
     transition: all 0.3s;
+    border-left: 4px solid transparent;
+    font-size: 15px;
 }
 
 .nav-item:hover {
-    background: #4a5568;
-    border-left: 4px solid #4299e1;
+    background: rgba(255, 255, 255, 0.05);
 }
 
 .nav-item.active {
-    background: #4a5568;
-    border-left: 4px solid #4299e1;
-    color: white;
+    background: rgba(255, 255, 255, 0.08);
+    border-left: 4px solid #F7DC6F;
+    color: rgb(244, 244, 100);
+}
+
+.nav-item.active .nav-icon {
+    color: #F7DC6F;
 }
 
 .nav-icon {
     font-size: 20px;
+    color: white;
+    transition: color 0.3s;
+    width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .sidebar-footer {
@@ -211,7 +224,7 @@ body {
     color: white;
     border: none;
     padding: 8px 16px;
-    border-radius: 6px;
+    border-radius: 230px;
     font-size: 14px;
     cursor: pointer;
     transition: background 0.3s;
@@ -295,6 +308,12 @@ body {
     justify-content: center;
     background: white;
     border-radius: 8px;
+}
+
+.transaction-item:hover {
+    background: #edf2f7;
+    border-color: #4299e1;
+    transform: translateY(-2px);
 }
 
 .transaction-info {
@@ -428,6 +447,12 @@ body {
     font-weight: 700;
     font-size: 16px;
     color: #1a202c;
+}
+
+.item-row:hover {
+    background: #edf2f7;
+    border-color: #4299e1;
+    transform: translateY(-2px);
 }
 
 /* Inventory Card */
