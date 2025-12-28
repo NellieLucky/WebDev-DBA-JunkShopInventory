@@ -84,7 +84,7 @@ function getWeeklyRevenueData() {
     return [
         'labels' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
         'revenue' => [6000, 6500, 3000, 5000, 4500, 5500, 5000],
-        'expense' => [4000, 4500, 2000, 5500, 3000, 6000, 4000]
+        'expense' => [4000, 4500, 2000, 5500, 3000, 6000, 14000]
     ];
 }
 
@@ -415,7 +415,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
         </section>
     </main>
 
-    <script src="dashboard.js"></script>
+    <script src="Dashboard.js"></script>
     <script>
         // Pass PHP data to JavaScript
         const dashboardData = <?php echo json_encode($dashboard_data); ?>;

@@ -117,7 +117,7 @@ function handleTransactionClick(item) {
 }
 
 // Handle top item clicks
-function handleItemClick(row) {
+function handleItemClick(row) { //Example ng query, baguhin nalang yung name
     const itemName = row.querySelector('.item-name').textContent;
     const itemDetail = row.querySelector('.item-detail').textContent;
     const itemPrice = row.querySelector('.item-price').textContent;
@@ -138,6 +138,9 @@ function initializeCharts() {
     
     // Net Profit Chart
     createProfitChart();
+
+    // Top Items List
+    updateTopItems();
     
     // Inventory Pie Chart
     createInventoryPieChart();
@@ -158,11 +161,54 @@ function createRevenueChart() {
     const height = canvas.height = 250;
     
     // Sample data
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const revenue = [6000, 6500, 3000, 5000, 4500, 5500, 5000];
     const expense = [4000, 4500, 2000, 5500, 3000, 6000, 4000];
     
     drawAreaChart(ctx, width, height, labels, revenue, expense);
+
+    // Add hover functionality
+    let tooltip = document.getElementById('revenue-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'revenue-tooltip';
+        tooltip.style.position = 'absolute';
+        tooltip.style.background = 'rgba(0, 0, 0, 0.8)';
+        tooltip.style.color = 'white';
+        tooltip.style.padding = '10px 15px';
+        tooltip.style.borderRadius = '8px';
+        tooltip.style.fontSize = '14px';
+        tooltip.style.pointerEvents = 'none';
+        tooltip.style.display = 'none';
+        document.body.appendChild(tooltip);
+    }
+
+    canvas.addEventListener('mousemove', function(event) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        const padding = {top: 20, right: 20, bottom: 40, left: 50};
+        const chartWidth = width - padding.left - padding.right;
+        const stepX = chartWidth / (labels.length - 1);
+
+        // Find the closest index
+        const index = Math.round((mouseX - padding.left) / stepX);
+        if (index >= 0 && index < labels.length) {
+            const rev = revenue[index];
+            const exp = expense[index];
+            tooltip.innerHTML = `<strong>${labels[index]}</strong>: <span style="color: #4299e1; font-weight: bold;">Revenue: </span>₱${rev.toLocaleString()}, <span style="color: #f56565; font-weight: bold;">Expense: </span>₱${exp.toLocaleString()}`;
+            tooltip.style.left = `${event.pageX + 10}px`;
+            tooltip.style.top = `${event.pageY - 10}px`;
+            tooltip.style.display = 'block';
+        } else {
+            tooltip.style.display = 'none';
+        }
+    });
+
+    canvas.addEventListener('mouseout', function() {
+        tooltip.style.display = 'none';
+    });
 }
 
 // Create Weekly Transactions Chart
@@ -179,6 +225,11 @@ function createWeeklyChart() {
     
     const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const data = [8, 12, 16, 20, 18, 28, 24];
+    const totalTransactions = data.reduce((sum, value) => sum + value, 0);
+    const transactionElement = document.querySelector('.total-badge'); // Kukuhain niya yung may name na class na ito from html
+    if (transactionElement) {
+        transactionElement.textContent = totalTransactions.toString();
+    }
     
     drawBarChart(ctx, width, height, labels, data);
 }
@@ -196,10 +247,84 @@ function createProfitChart() {
     const height = canvas.height = 400;
     
     const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const revenue = [20000, 50000, 60000, 65000, 30000, 75000, 100000, 80000, 100000, 70000, 85000, 95000];
+    const revenue = [20000, 55000, 60000, 65000, 30000, 75000, 100000, 80000, 100000, 70000, 85000, 95000];
     const expense = [10000, 18000, 12000, 20000, 25000, 60000, 70000, 35000, 65000, 55000, 75000, 45000];
-    
-    drawLineChart(ctx, width, height, labels, revenue, expense);
+    const totalRevenue = revenue.reduce((sum, value) => sum + value, 0);
+    const totalExpense = expense.reduce((sum, value) => sum + value, 0);
+    const totalProfit = totalRevenue - totalExpense;
+    const profitElement = document.querySelector('.profit-value'); // Kukuhain niya yung may name na class na ito from html
+    if (profitElement) {
+        profitElement.textContent = `₱${totalProfit.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+
+    let currentHoveredIndex = null;
+
+    function redrawChart(hoveredIndex = null) {
+        drawLineChart(ctx, width, height, labels, revenue, expense, hoveredIndex);
+    }
+
+    redrawChart();
+
+    // Add hover functionality
+    let tooltip = document.getElementById('profit-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'profit-tooltip';
+        tooltip.style.position = 'absolute';
+        tooltip.style.background = 'rgba(0, 0, 0, 0.8)';
+        tooltip.style.color = 'white';
+        tooltip.style.padding = '10px 15px';
+        tooltip.style.borderRadius = '8px';
+        tooltip.style.fontSize = '14px';
+        tooltip.style.pointerEvents = 'none';
+        tooltip.style.display = 'none';
+        document.body.appendChild(tooltip);
+    }
+
+    canvas.addEventListener('mousemove', function(event) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        const padding = {top: 40, right: 20, bottom: 50, left: 60};
+        const chartWidth = width - padding.left - padding.right;
+        const stepX = chartWidth / (labels.length - 1);
+
+        // Find the closest index
+        const index = Math.round((mouseX - padding.left) / stepX);
+        if (index >= 0 && index < labels.length) {
+            if (currentHoveredIndex !== index) {
+                currentHoveredIndex = index;
+                redrawChart(currentHoveredIndex);
+            }
+            const rev = revenue[index];
+            const exp = expense[index];
+            tooltip.innerHTML = `<strong>${labels[index]}</strong>: <span style="color: #4299e1; font-weight: bold;">Revenue: </span>₱${rev.toLocaleString()}, <span style="color: #f56565; font-weight: bold;">Expense: </span>₱${exp.toLocaleString()}`;
+            tooltip.style.left = `${event.pageX + 10}px`;
+            tooltip.style.top = `${event.pageY - 10}px`;
+            tooltip.style.display = 'block'
+        } else {
+            if (currentHoveredIndex !== null) {
+                currentHoveredIndex = null;
+                redrawChart();
+            }
+            tooltip.style.display = 'none';
+        }
+    });
+
+    canvas.addEventListener('mouseout', function() {
+        if (currentHoveredIndex !== null) {
+            currentHoveredIndex = null;
+            redrawChart();
+        }
+        tooltip.style.display = 'none';
+    });
+
+    canvas.addEventListener('click', function(event) {
+        // Optional: Keep tooltip visible on click, or handle differently
+        // For now, just log or do nothing extra
+        console.log('Profit chart clicked');
+    });
 }
 
 // Create Inventory Pie Chart
@@ -215,10 +340,94 @@ function createInventoryPieChart() {
     canvas.width = size;
     canvas.height = size;
     
-    const data = [400, 300, 250, 200, 175]; // kg
+    const data = [400, 300, 250, 200, 75]; // kg
+    const labels = ['Plastic', 'Metal', 'Paper', 'Glass', 'Other'];
     const colors = ['#A78BFA', '#7DD3FC', '#FDE047', '#60A5FA', '#E8B4F5'];
-    
+    const totalWeight = data.reduce((sum, value) => sum + value, 0);
+    const weightElement = document.querySelector('.pie-value'); // Kukuhain niya yung may name na class na ito from html
+    if (weightElement) {
+        weightElement.textContent = `${totalWeight.toLocaleString()} kg`;
+    }
+
     drawDonutChart(ctx, size, data, colors);
+
+    // Sort legend from highest to lowest weight
+    const legendItems = labels.map((label, i) => ({ label, color: colors[i], weight: data[i] }));
+    legendItems.sort((a, b) => b.weight - a.weight);
+
+    const legendDiv = document.querySelector('.inventory-legend');
+    legendDiv.innerHTML = '';
+    legendItems.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'legend-item';
+        div.innerHTML = `<span class="legend-color" style="background: ${item.color};"></span><span>${item.label}</span>`;
+        legendDiv.appendChild(div);
+    });
+
+    // Add hover functionality
+    let tooltip = document.getElementById('inventory-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'inventory-tooltip';
+        tooltip.style.position = 'absolute';
+        tooltip.style.background = 'rgba(0, 0, 0, 0.8)';
+        tooltip.style.color = 'white';
+        tooltip.style.padding = '10px 15px';
+        tooltip.style.borderRadius = '8px';
+        tooltip.style.fontSize = '14px';
+        tooltip.style.pointerEvents = 'none';
+        tooltip.style.display = 'none';
+        document.body.appendChild(tooltip);
+    }
+
+    canvas.addEventListener('mousemove', function(event) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+
+        const centerX = size / 2;
+        const centerY = size / 2;
+        const radius = size / 2 - 10;
+        const innerRadius = radius * 0.55;
+
+        const dx = mouseX - centerX;
+        const dy = mouseY - centerY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist >= innerRadius && dist <= radius) {
+            let angle = Math.atan2(dy, dx);
+            if (angle < 0) angle += 2 * Math.PI; // Normalize to 0-2PI
+            angle += Math.PI / 2; // Adjust for starting angle
+            if (angle > 2 * Math.PI) angle -= 2 * Math.PI;
+
+            const total = data.reduce((a, b) => a + b, 0);
+            let currentAngle = 0;
+            let index = -1;
+            for (let i = 0; i < data.length; i++) {
+                const sliceAngle = (data[i] / total) * 2 * Math.PI;
+                if (angle >= currentAngle && angle < currentAngle + sliceAngle) {
+                    index = i;
+                    break;
+                }
+                currentAngle += sliceAngle;
+            }
+
+            if (index !== -1) {
+                tooltip.innerHTML = `<strong><span style="font-weight: bold; color: ${colors[index]};">${labels[index]}:</span></strong> ${data[index]} kg`;
+                tooltip.style.left = `${event.pageX + 10}px`;
+                tooltip.style.top = `${event.pageY - 10}px`;
+                tooltip.style.display = 'block';
+            } else {
+                tooltip.style.display = 'none';
+            }
+        } else {
+            tooltip.style.display = 'none';
+        }
+    });
+
+    canvas.addEventListener('mouseout', function() {
+        tooltip.style.display = 'none';
+    });
 }
 
 // Draw area chart (for revenue/expense)
@@ -512,9 +721,46 @@ function drawDonutChart(ctx, size, data, colors) {
     ctx.fill();
 }
 
+// Update top items list
+function updateTopItems() {
+    const topItems = [
+        { name: 'White Paper', quantityKg: 644, pricePerKg: 10.78, icon: '🔩' },
+        { name: 'Metal', quantityKg: 500, pricePerKg: 9.42, icon: '📦' },
+        { name: 'Plastic Bottles', quantityKg: 644, pricePerKg: 7.26, icon: '🍾' },
+        { name: 'Diaryo', quantityKg: 60, pricePerKg: 3.43, icon: '📦' },
+        { name: 'Tin Cans', quantityKg: 644, pricePerKg: 4.51, icon: '🍾' }
+    ];
+
+    // Calculate total sales and sort by total sales descending
+    topItems.forEach(item => {
+        item.totalSales = item.pricePerKg * item.quantityKg;
+    });
+    topItems.sort((a, b) => b.totalSales - a.totalSales);
+
+    const itemsList = document.querySelector('.items-list');
+    itemsList.innerHTML = '';
+
+    topItems.forEach(item => {
+        const itemRow = document.createElement('div');
+        itemRow.className = 'item-row';
+        itemRow.innerHTML = `
+            <div class="item-info">
+                <span class="item-icon">${item.icon}</span>
+                <div>
+                    <p class="item-name">${item.name}</p>
+                    <p class="item-detail">${item.quantityKg} kg </p>
+                </div>
+            </div>
+            <span class="item-price">₱${item.totalSales.toLocaleString()}</span>
+        `;
+        itemsList.appendChild(itemRow);
+    });
+}
+
 // Update dashboard data (placeholder function)
 function updateDashboardData() {
     console.log('Dashboard data updated');
+    updateTopItems(); // Refresh top items if needed
 }
 
 // Refresh data every 5 minutes
