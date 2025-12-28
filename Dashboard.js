@@ -138,6 +138,9 @@ function initializeCharts() {
     
     // Net Profit Chart
     createProfitChart();
+
+    // Top Items List
+    updateTopItems();
     
     // Inventory Pie Chart
     createInventoryPieChart();
@@ -718,9 +721,46 @@ function drawDonutChart(ctx, size, data, colors) {
     ctx.fill();
 }
 
+// Update top items list
+function updateTopItems() {
+    const topItems = [
+        { name: 'White Paper', quantityKg: 644, pricePerKg: 10.78, icon: '🔩' },
+        { name: 'Metal', quantityKg: 500, pricePerKg: 9.42, icon: '📦' },
+        { name: 'Plastic Bottles', quantityKg: 644, pricePerKg: 7.26, icon: '🍾' },
+        { name: 'Diaryo', quantityKg: 60, pricePerKg: 3.43, icon: '📦' },
+        { name: 'Tin Cans', quantityKg: 644, pricePerKg: 4.51, icon: '🍾' }
+    ];
+
+    // Calculate total sales and sort by total sales descending
+    topItems.forEach(item => {
+        item.totalSales = item.pricePerKg * item.quantityKg;
+    });
+    topItems.sort((a, b) => b.totalSales - a.totalSales);
+
+    const itemsList = document.querySelector('.items-list');
+    itemsList.innerHTML = '';
+
+    topItems.forEach(item => {
+        const itemRow = document.createElement('div');
+        itemRow.className = 'item-row';
+        itemRow.innerHTML = `
+            <div class="item-info">
+                <span class="item-icon">${item.icon}</span>
+                <div>
+                    <p class="item-name">${item.name}</p>
+                    <p class="item-detail">${item.quantityKg} kg </p>
+                </div>
+            </div>
+            <span class="item-price">₱${item.totalSales.toLocaleString()}</span>
+        `;
+        itemsList.appendChild(itemRow);
+    });
+}
+
 // Update dashboard data (placeholder function)
 function updateDashboardData() {
     console.log('Dashboard data updated');
+    updateTopItems(); // Refresh top items if needed
 }
 
 // Refresh data every 5 minutes

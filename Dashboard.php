@@ -415,7 +415,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
         </section>
     </main>
 
-    <script src="dashboard.js"></script>
+    <script src="Dashboard.js"></script>
     <script>
         // Pass PHP data to JavaScript
         const dashboardData = <?php echo json_encode($dashboard_data); ?>;
