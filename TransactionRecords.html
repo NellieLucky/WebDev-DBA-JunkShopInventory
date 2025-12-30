@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Records - ScrapTrack</title>
+    <link rel="stylesheet" href="TransactionRecords.css">
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <img src="Logos-Icons/3.png" alt="ScrapTrack Logo" class="logo-icon">
+            <span class="logo-text">ScrapTrack</span>
+        </div>
+
+        <nav class="nav-menu">
+            <div class="nav-section">
+                <p class="nav-label">General</p>
+                <a href="Dashboard.html" class="nav-item">
+                    <span class="nav-icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="Inventory.html" class="nav-item">
+                    <span class="nav-icon">📦</span>
+                    <span>Inventory</span>
+                </a>
+                <a href="Transaction.html" class="nav-item">
+                    <span class="nav-icon">💳</span>
+                    <span>Transaction</span>
+                </a>
+                <a href="TransactionRecords.html" class="nav-item active">
+                    <span class="nav-icon">📋</span>
+                    <span>Transaction Records</span>
+                </a>
+                <a href="EmployeeManagement.html" class="nav-item">
+                    <span class="nav-icon">👥</span>
+                    <span>Employee Management</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <p class="nav-label">Settings</p>
+                <a href="AccountSettings.html" class="nav-item">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Account Settings</span>
+                </a>
+                <a href="logout.php" class="nav-item">
+                    <span class="nav-icon">🚪</span>
+                    <span>Log Out</span>
+                </a>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <img src="Logos-Icons/3.png" alt="ScrapTrack" class="footer-logo">
+            <span class="footer-text">ScrapTrack</span>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+            <div>
+                <h1>Transaction Records</h1>
+                <p class="subtitle">Your records of transactions</p>
+            </div>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="search-header">
+                <h3>Search Inventory</h3>
+                <p class="search-subtitle">Find items by name, category or description</p>
+            </div>
+            
+            <div class="search-bar-container">
+                <div class="search-bar">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchInput" placeholder="Search Transaction....." class="search-input">
+                </div>
+                <button class="filter-btn" id="filterBtn">
+                    <span class="filter-icon">🔽</span>
+                </button>
+                <button class="add-btn" id="addBtn">Add</button>
+            </div>
+        </section>
+
+        <!-- Transaction Records Table -->
+        <section class="records-section">
+            <div class="table-container">
+                <table class="records-table">
+                    <thead>
+                        <tr>
+                            <th>TRANSACTION ID</th>
+                            <th>DATE</th>
+                            <th>TYPE</th>
+                            <th>NO. OF ITEMS</th>
+                            <th>TOTAL QUANTITY<br>(item by piece)</th>
+                            <th>TOTAL QUANTITY<br>(item by kilo)</th>
+                            <th>TOTAL AMOUNT</th>
+                            <th>ACTION</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsTableBody">
+                        <!-- Default data -->
+                        <tr data-id="1">
+                            <td>1</td>
+                            <td>2025-12-23</td>
+                            <td><span class="badge badge-received">Received</span></td>
+                            <td>1 item</td>
+                            <td>69 pcs</td>
+                            <td>69 kg</td>
+                            <td>₱69.00</td>
+                            <td>
+                                <button class="action-btn view-btn" onclick="viewTransaction(1)" title="View Details">
+                                    📄
+                                </button>
+                            </td>
+                        </tr>
+                        <tr data-id="2">
+                            <td>2</td>
+                            <td>2025-12-23</td>
+                            <td><span class="badge badge-dispatched">Dispatched</span></td>
+                            <td>5 items</td>
+                            <td>69 pcs</td>
+                            <td>69kg</td>
+                            <td>₱69.00</td>
+                            <td>
+                                <button class="action-btn view-btn" onclick="viewTransaction(2)" title="View Details">
+                                    📄
+                                </button>
+                            </td>
+                        </tr>
+                        <tr data-id="3">
+                            <td>3</td>
+                            <td>2025-12-23</td>
+                            <td><span class="badge badge-received">Received</span></td>
+                            <td>6 items</td>
+                            <td>69 pcs</td>
+                            <td>69kg</td>
+                            <td>₱69.00</td>
+                            <td>
+                                <button class="action-btn view-btn" onclick="viewTransaction(3)" title="View Details">
+                                    📄
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <!-- Transaction Detail Modal -->
+    <div class="modal" id="detailModal">
+        <div class="modal-backdrop" onclick="closeDetailModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Transaction Details</h2>
+                <button class="close-btn" onclick="closeDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Transaction ID:</span>
+                        <span class="detail-value" id="detailId">1</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value" id="detailDate">2025-12-23</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Type:</span>
+                        <span class="detail-value" id="detailType">Received</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Customer:</span>
+                        <span class="detail-value" id="detailCustomer">Gwyneth</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">No. of Items:</span>
+                        <span class="detail-value" id="detailItems">1 item</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Total by Piece:</span>
+                        <span class="detail-value" id="detailPiece">69 pcs</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Total by Kilo:</span>
+                        <span class="detail-value" id="detailKilo">69 kg</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Total Amount:</span>
+                        <span class="detail-value" id="detailAmount">₱69.00</span>
+                    </div>
+                </div>
+
+                <div class="items-section">
+                    <h3>Items in Transaction</h3>
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th>ITEM</th>
+                                <th>CATEGORY</th>
+                                <th>QTY TYPE</th>
+                                <th>QUANTITY</th>
+                                <th>PRICE</th>
+                                <th>AMOUNT</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailItemsBody">
+                            <!-- Items will be inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn-print" onclick="printTransaction()">Print Invoice</button>
+                    <button class="btn-close" onclick="closeDetailModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="TransactionRecords.js"></script>
+</body>
+</html>
