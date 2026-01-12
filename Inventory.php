@@ -5,15 +5,14 @@
 // Start session for user management
 session_start();
 
-// TODO: Uncomment when database is ready
-// include_once 'config/database.php';
-// include_once 'includes/functions.php';
-
 // Check if user is logged in (placeholder)
 // if (!isset($_SESSION['user_id'])) {
 //     header("Location: login.php");
 //     exit();
 // }
+
+// DB connection 
+require_once __DIR__ . '/db_connect.php';
 
 // Get user information
 $username = isset($_SESSION['username']) ? $_SESSION['username'] : 'ExoticNellie69';
@@ -43,156 +42,40 @@ if (isset($_POST['action'])) {
     exit();
 }
 
-// Placeholder data functions (replace with database queries later)
-
-function getAllInventoryItems() {
-    // TODO: Replace with database query
-    // $query = "SELECT * FROM inventory ORDER BY date_added DESC";
-    
-    return [
-        'success' => true,
-        'data' => [
-            [
-                'id' => 1,
-                'name' => 'Glass Bottle',
-                'category' => 'Babasagin',
-                'qty_type' => 'Piraso',
-                'quantity' => 69,
-                'buying_price' => 69.00,
-                'selling_price' => 69.00,
-                'date_added' => '2025-12-23'
-            ],
-            [
-                'id' => 2,
-                'name' => 'White',
-                'category' => 'Paper',
-                'qty_type' => 'Kilo',
-                'quantity' => 69,
-                'buying_price' => 69.00,
-                'selling_price' => 69.00,
-                'date_added' => '2025-12-23'
-            ],
-            [
-                'id' => 3,
-                'name' => 'White',
-                'category' => 'Paper',
-                'qty_type' => 'Kilo',
-                'quantity' => 69,
-                'buying_price' => 69.00,
-                'selling_price' => 69.00,
-                'date_added' => '2025-12-23'
-            ],
-            [
-                'id' => 4,
-                'name' => 'White',
-                'category' => 'Paper',
-                'qty_type' => 'Kilo',
-                'quantity' => 69,
-                'buying_price' => 69.00,
-                'selling_price' => 69.00,
-                'date_added' => '2025-12-23'
-            ],
-            [
-                'id' => 5,
-                'name' => 'White',
-                'category' => 'Paper',
-                'qty_type' => 'Kilo',
-                'quantity' => 69,
-                'buying_price' => 69.00,
-                'selling_price' => 69.00,
-                'date_added' => '2025-12-23'
-            ]
-        ]
-    ];
-}
-
-function addInventoryItem($data) {
-    // TODO: Replace with database query
-    // $query = "INSERT INTO inventory (name, category, qty_type, quantity, buying_price, selling_price, date_added, user_id) 
-    //           VALUES (?, ?, ?, ?, ?, ?, NOW(), ?)";
-    // $stmt = $conn->prepare($query);
-    // $stmt->bind_param("sssdddi", $data['name'], $data['category'], $data['qty_type'], 
-    //                    $data['quantity'], $data['buying_price'], $data['selling_price'], $user_id);
-    // $success = $stmt->execute();
-    
-    return [
-        'success' => true,
-        'message' => 'Item added successfully!',
-        'data' => [
-            'id' => rand(100, 999), // Placeholder ID
-            'name' => $data['name'],
-            'category' => $data['category'],
-            'qty_type' => $data['qty_type'],
-            'quantity' => $data['quantity'],
-            'buying_price' => $data['buying_price'],
-            'selling_price' => $data['selling_price'],
-            'date_added' => date('Y-m-d')
-        ]
-    ];
-}
-
-function updateInventoryItem($data) {
-    // TODO: Replace with database query
-    // $query = "UPDATE inventory SET name=?, category=?, qty_type=?, quantity=?, 
-    //           buying_price=?, selling_price=? WHERE id=? AND user_id=?";
-    // $stmt = $conn->prepare($query);
-    // $stmt->bind_param("sssdddii", $data['name'], $data['category'], $data['qty_type'],
-    //                    $data['quantity'], $data['buying_price'], $data['selling_price'],
-    //                    $data['id'], $user_id);
-    // $success = $stmt->execute();
-    
-    return [
-        'success' => true,
-        'message' => 'Item updated successfully!',
-        'data' => $data
-    ];
-}
-
-function deleteInventoryItem($id) {
-    // TODO: Replace with database query
-    // $query = "DELETE FROM inventory WHERE id=? AND user_id=?";
-    // $stmt = $conn->prepare($query);
-    // $stmt->bind_param("ii", $id, $user_id);
-    // $success = $stmt->execute();
-    
-    return [
-        'success' => true,
-        'message' => 'Item deleted successfully!'
-    ];
-}
-
-function searchInventoryItems($search) {
-    // TODO: Replace with database query
-    // $query = "SELECT * FROM inventory WHERE (name LIKE ? OR category LIKE ? OR qty_type LIKE ?) AND user_id=?";
-    // $searchTerm = "%$search%";
-    // $stmt = $conn->prepare($query);
-    // $stmt->bind_param("sssi", $searchTerm, $searchTerm, $searchTerm, $user_id);
-    
-    return [
-        'success' => true,
-        'data' => [] // Return filtered results
-    ];
-}
-
 function getInventoryStats() {
-    // TODO: Replace with database queries
-    // Total items query
-    // $query = "SELECT SUM(quantity) as total_items FROM inventory WHERE user_id=?";
-    
-    // Total weight query (only Kilo items)
-    // $query = "SELECT SUM(quantity) as total_weight FROM inventory WHERE qty_type='Kilo' AND user_id=?";
-    
-    // Total value query
-    // $query = "SELECT SUM(quantity * selling_price) as total_value FROM inventory WHERE user_id=?";
-    
-    return [
-        'total_items' => 69,
-        'total_weight' => 69,
-        'total_value' => 69.00
-    ];
+    global $conn;
+
+    $stmt = sqlsrv_query($conn, "EXEC sp_GetInventoryStats");
+    return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 }
 
 $stats = getInventoryStats();
+
+function getCategories() {
+    global $conn;
+
+    if (!$conn) {
+        return []; // prevents fatal error
+    }
+
+    $stmt = sqlsrv_query($conn, "EXEC sp_GetCategories");
+
+    if ($stmt === false) {
+        // Optional: log sqlsrv_errors() for debugging
+        return [];
+    }
+
+    $cats = [];
+
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $cats[] = $row;
+    }
+
+    return $cats;
+}
+
+$categories = getCategories();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -268,17 +151,17 @@ $stats = getInventoryStats();
         <section class="stats-grid">
             <div class="stat-card">
                 <p class="stat-label">Total No. of Items</p>
-                <h2 class="stat-value" id="totalItems"><?php echo $stats['total_items']; ?></h2>
+                <h2 class="stat-value" id="TotalItems"><?php echo $stats['TotalItems']; ?></h2>
             </div>
 
             <div class="stat-card">
                 <p class="stat-label">Total Weight of All Items</p>
-                <h2 class="stat-value" id="totalWeight"><?php echo $stats['total_weight']; ?> kg</h2>
+                <h2 class="stat-value" id="TotalWeight"><?php echo $stats['TotalWeight']; ?> kg</h2>
             </div>
 
             <div class="stat-card">
                 <p class="stat-label">Total Value</p>
-                <h2 class="stat-value" id="totalValue">₱<?php echo number_format($stats['total_value'], 2); ?></h2>
+                <h2 class="stat-value" id="TotalValue">₱<?php echo number_format($stats['TotalValue'], 2); ?></h2>
             </div>
         </section>
 
@@ -352,7 +235,14 @@ $stats = getInventoryStats();
                     </div>
                     <div class="form-group">
                         <label for="itemCategory">Category</label>
-                        <input type="text" id="itemCategory" name="category" required>
+                        <select id="itemCategory" name="category_id" required>
+                            <option value="">Select Category</option>
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?= $cat['CategoryID'] ?>">
+                                    <?= htmlspecialchars($cat['Category_Name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="qtyType">Quantity Type</label>
@@ -383,61 +273,4 @@ $stats = getInventoryStats();
         </div>
     </div>
 
-    <script src="Inventory.js"></script>
-    <script>
-        // PHP data available to JavaScript
-        const phpData = {
-            stats: <?php echo json_encode($stats); ?>,
-            username: '<?php echo htmlspecialchars($username); ?>'
-        };
-        
-        // Load inventory data on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadInventoryFromPHP();
-        });
-        
-        // Function to load inventory data via AJAX
-        function loadInventoryFromPHP() {
-            // In production, this would fetch from database via AJAX
-            // fetch('Inventory.php', {
-            //     method: 'POST',
-            //     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            //     body: 'action=get_all'
-            // })
-            // .then(response => response.json())
-            // .then(data => {
-            //     if (data.success) {
-            //         inventoryItems = data.data;
-            //         renderInventoryTable();
-            //     }
-            // });
-        }
-        
-        // Override the form submit to use PHP backend
-        const originalHandleFormSubmit = handleFormSubmit;
-        handleFormSubmit = function(e) {
-            e.preventDefault();
-            
-            const formData = new FormData(document.getElementById('itemForm'));
-            formData.append('action', currentEditId ? 'update' : 'add');
-            
-            // In production, send to PHP backend
-            // fetch('Inventory.php', {
-            //     method: 'POST',
-            //     body: formData
-            // })
-            // .then(response => response.json())
-            // .then(data => {
-            //     if (data.success) {
-            //         showNotification(data.message, 'success');
-            //         loadInventoryFromPHP();
-            //         closeItemModal();
-            //     }
-            // });
-            
-            // For now, use the original function
-            originalHandleFormSubmit(e);
-        };
-    </script>
-</body>
-</html>
+<script src="Inventory.js"></script>

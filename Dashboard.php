@@ -15,6 +15,8 @@ session_start();
 //     exit();
 // }
 
+require_once __DIR__ . '/db_connect.php';
+
 // Get user information (placeholder)
 $username = isset($_SESSION['username']) ? $_SESSION['username'] : 'ExoticNellie69';
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;

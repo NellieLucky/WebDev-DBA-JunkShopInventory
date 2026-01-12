@@ -1,72 +1,42 @@
 // ScrapTrack Inventory Management JavaScript
 
-// Sample inventory data (replace with database later)
-let inventoryItems = [
-    {
-        id: 1,
-        name: "Glass Bottle",
-        category: "Babasagin",
-        qtyType: "Piraso",
-        quantity: 69,
-        buyingPrice: 69.00,
-        sellingPrice: 69.00,
-        dateAdded: "2025-12-23"
-    },
-    {
-        id: 2,
-        name: "White",
-        category: "Paper",
-        qtyType: "Kilo",
-        quantity: 69,
-        buyingPrice: 69.00,
-        sellingPrice: 69.00,
-        dateAdded: "2025-12-23"
-    },
-    {
-        id: 3,
-        name: "White",
-        category: "Paper",
-        qtyType: "Kilo",
-        quantity: 69,
-        buyingPrice: 69.00,
-        sellingPrice: 69.00,
-        dateAdded: "2025-12-23"
-    },
-    {
-        id: 4,
-        name: "White",
-        category: "Paper",
-        qtyType: "Kilo",
-        quantity: 69,
-        buyingPrice: 69.00,
-        sellingPrice: 69.00,
-        dateAdded: "2025-12-23"
-    },
-    {
-        id: 5,
-        name: "White",
-        category: "Paper",
-        qtyType: "Kilo",
-        quantity: 69,
-        buyingPrice: 69.00,
-        sellingPrice: 69.00,
-        dateAdded: "2025-12-23"
-    }
-];
-
+let inventoryItems = [];
 let currentEditId = null;
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    initializeInventory();
-    setupEventListeners();
-    updateStats();
-});
+// Fetch inventory from PHP and update the table
+function loadInventoryFromPHP() {
+    console.log('loadInventoryFromPHP() CALLED');
 
-// Initialize inventory display
-function initializeInventory() {
-    renderInventoryTable();
-    updateStats();
+    fetch('./inventory_api.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'get_all' })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+            // Map PHP response to JS format
+            inventoryItems = data.data.map(item => ({
+                id: item.id,
+                name: item.name,
+                category: item.category,
+                qtyType: item.qty_type,
+                quantity: item.quantity,
+                buyingPrice: parseFloat(item.buying_price),
+                sellingPrice: parseFloat(item.selling_price),
+                dateAdded: item.date_added ? item.date_added : new Date().toISOString().split('T')[0]
+            }));
+            renderInventoryTable(inventoryItems);
+            updateStats();
+        } else {
+            console.error('Failed to load inventory:', data);
+            renderInventoryTable([]);
+        }
+    })
+    .catch(err => {
+        console.error('Error fetching inventory:', err);
+        renderInventoryTable([]);
+    });
 }
 
 // Setup all event listeners
@@ -148,19 +118,19 @@ function formatDate(dateString) {
 // Update statistics
 function updateStats() {
     // Calculate total items
-    const totalItems = inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
-    document.getElementById('totalItems').textContent = totalItems;
+    const TotalItems = inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
+    document.getElementById('TotalItems').textContent = TotalItems;
 
     // Calculate total weight (only for Kilo items)
-    const totalWeight = inventoryItems
+    const TotalWeight = inventoryItems
         .filter(item => item.qtyType === 'Kilo')
         .reduce((sum, item) => sum + item.quantity, 0);
-    document.getElementById('totalWeight').textContent = `${totalWeight} kg`;
+    document.getElementById('TotalWeight').textContent = `${TotalWeight} kg`;
 
     // Calculate total value
-    const totalValue = inventoryItems.reduce((sum, item) => 
+    const TotalValue = inventoryItems.reduce((sum, item) => 
         sum + (item.quantity * item.sellingPrice), 0);
-    document.getElementById('totalValue').textContent = `₱${totalValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('TotalValue').textContent = `₱${TotalValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     // Update items count
     document.getElementById('itemsCount').textContent = `${inventoryItems.length} items found`;
@@ -185,36 +155,25 @@ function closeItemModal() {
 function handleFormSubmit(e) {
     e.preventDefault();
 
-    const formData = {
-        name: document.getElementById('itemName').value,
-        category: document.getElementById('itemCategory').value,
-        qtyType: document.getElementById('qtyType').value,
-        quantity: parseFloat(document.getElementById('quantity').value),
-        buyingPrice: parseFloat(document.getElementById('buyingPrice').value),
-        sellingPrice: parseFloat(document.getElementById('sellingPrice').value),
-        dateAdded: new Date().toISOString().split('T')[0]
-    };
+    const formData = new FormData(document.getElementById('itemForm'));
+    formData.append('action', currentEditId ? 'update' : 'add');
+    if (currentEditId) formData.append('id', currentEditId);
 
-    if (currentEditId) {
-        // Update existing item
-        const index = inventoryItems.findIndex(item => item.id === currentEditId);
-        if (index !== -1) {
-            inventoryItems[index] = { ...inventoryItems[index], ...formData };
-            showNotification('Item updated successfully!', 'success');
-        }
-    } else {
-        // Add new item
-        const newItem = {
-            id: inventoryItems.length > 0 ? Math.max(...inventoryItems.map(i => i.id)) + 1 : 1,
-            ...formData
-        };
-        inventoryItems.push(newItem);
-        showNotification('Item added successfully!', 'success');
-    }
-
-    renderInventoryTable();
-    updateStats();
-    closeItemModal();
+    fetch('./inventory_api.php', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                loadInventoryFromPHP();
+                closeItemModal();
+                showNotification(data.message || (currentEditId ? 'Item updated' : 'Item added'), 'success');
+            } else {
+                showNotification(data.message || 'Error', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error submitting form:', err);
+            showNotification('Error submitting form', 'error');
+        });
 }
 
 // Edit item
@@ -238,13 +197,24 @@ function editItem(id) {
 function deleteItem(id) {
     if (!confirm('Are you sure you want to delete this item?')) return;
 
-    const index = inventoryItems.findIndex(item => item.id === id);
-    if (index !== -1) {
-        inventoryItems.splice(index, 1);
-        renderInventoryTable();
-        updateStats();
-        showNotification('Item deleted successfully!', 'success');
-    }
+    const formData = new FormData();
+    formData.append('action', 'delete');
+    formData.append('id', id);
+
+    fetch('./inventory_api.php', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                loadInventoryFromPHP();
+                showNotification(data.message || 'Item deleted', 'success');
+            } else {
+                showNotification(data.message || 'Error deleting', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error deleting item:', err);
+            showNotification('Error deleting item', 'error');
+        });
 }
 
 // Handle search
@@ -324,5 +294,10 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Manual initialization
+setupEventListeners();
+loadInventoryFromPHP();
+
 
 console.log('ScrapTrack Inventory initialized successfully!');
