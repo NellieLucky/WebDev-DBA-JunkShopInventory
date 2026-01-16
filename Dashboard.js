@@ -149,21 +149,9 @@ function initializeCharts() {
 }
 
 // Create Revenue & Expense Trend Chart
-function createRevenueChart() {
-    const canvas = document.getElementById('revenueChart');
-    if (!canvas) {
-        console.error('Revenue chart canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width = canvas.parentElement.offsetWidth;
-    const height = canvas.height = 250;
-    
-    // Sample data
-    const labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const revenue = [6000, 6500, 3000, 5000, 4500, 5500, 5000];
-    const expense = [4000, 4500, 2000, 5500, 3000, 6000, 4000];
+function createRevenueChart(labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], 
+                           revenue = [6000, 6500, 3000, 5000, 4500, 5500, 5000], 
+                           expense = [4000, 4500, 2000, 5500, 3000, 6000, 4000]) {
     
     drawAreaChart(ctx, width, height, labels, revenue, expense);
 
@@ -209,6 +197,11 @@ function createRevenueChart() {
     canvas.addEventListener('mouseout', function() {
         tooltip.style.display = 'none';
     });
+}
+
+// Update Revenue Chart
+function updateRevenueChart(labels, revenue, expense) {
+    createRevenueChart(labels, revenue, expense);
 }
 
 // Create Weekly Transactions Chart
@@ -328,7 +321,13 @@ function createProfitChart() {
 }
 
 // Create Inventory Pie Chart
-function createInventoryPieChart() {
+function createInventoryPieChart(items = [
+    {name: 'Plastic', weight: 400, color: '#A78BFA'},
+    {name: 'Metal', weight: 300, color: '#7DD3FC'},
+    {name: 'Paper', weight: 250, color: '#FDE047'},
+    {name: 'Glass', weight: 200, color: '#60A5FA'},
+    {name: 'Other', weight: 75, color: '#E8B4F5'}
+], total = 1225) {
     const canvas = document.getElementById('inventoryPie');
     if (!canvas) {
         console.error('Inventory pie chart canvas not found');
@@ -340,20 +339,10 @@ function createInventoryPieChart() {
     canvas.width = size;
     canvas.height = size;
     
-    const data = [400, 300, 250, 200, 75]; // kg
-    const labels = ['Plastic', 'Metal', 'Paper', 'Glass', 'Other'];
-    const colors = ['#A78BFA', '#7DD3FC', '#FDE047', '#60A5FA', '#E8B4F5'];
-    const totalWeight = data.reduce((sum, value) => sum + value, 0);
-    const weightElement = document.querySelector('.pie-value'); // Kukuhain niya yung may name na class na ito from html
-    if (weightElement) {
-        weightElement.textContent = `${totalWeight.toLocaleString()} kg`;
-    }
-
-    drawDonutChart(ctx, size, data, colors);
-
-    // Sort legend from highest to lowest weight
-    const legendItems = labels.map((label, i) => ({ label, color: colors[i], weight: data[i] }));
-    legendItems.sort((a, b) => b.weight - a.weight);
+    const data = items.map(item => item.weight);
+    const labels = items.map(item => item.name);
+    const colors = items.map(item => item.color);
+    const totalWeight = total;
 
     const legendDiv = document.querySelector('.inventory-legend');
     legendDiv.innerHTML = '';
@@ -428,6 +417,11 @@ function createInventoryPieChart() {
     canvas.addEventListener('mouseout', function() {
         tooltip.style.display = 'none';
     });
+}
+
+// Update Inventory Pie Chart
+function updateInventoryPieChart(items, total) {
+    createInventoryPieChart(items, total);
 }
 
 // Draw area chart (for revenue/expense)
@@ -757,10 +751,95 @@ function updateTopItems() {
     });
 }
 
-// Update dashboard data (placeholder function)
+// Update dashboard data (fetch from backend)
 function updateDashboardData() {
-    console.log('Dashboard data updated');
-    updateTopItems(); // Refresh top items if needed
+    fetch('Dashboard.php?ajax=1')
+        .then(response => response.json())
+        .then(data => {
+            // Update stats
+            document.getElementById('today-revenue').textContent = '₱' + data.today_revenue.toFixed(2);
+            document.getElementById('total-items').textContent = data.total_items;
+            document.getElementById('today-transactions').textContent = data.today_transactions;
+            document.getElementById('most-weighted').textContent = data.most_weighted_item + ' kg';
+            document.getElementById('net-profit').textContent = data.net_profit;
+
+            // Update username (if available)
+            if (data.username) {
+                document.getElementById('username').textContent = data.username;
+            }
+
+            // Update recent transactions
+            const transactionsContainer = document.getElementById('recent-transactions');
+            transactionsContainer.innerHTML = '';
+            data.recent_transactions.forEach(transaction => {
+                const item = document.createElement('div');
+                item.className = 'transaction-item';
+                item.innerHTML = `
+                    <div class="transaction-icon">${transaction.icon}</div>
+                    <div class="transaction-info">
+                        <p class="transaction-title">${transaction.item_name}</p>
+                        <p class="transaction-detail">${transaction.quantity}</p>
+                    </div>
+                    <span class="transaction-time">${transaction.time_ago}</span>
+                `;
+                transactionsContainer.appendChild(item);
+            });
+
+            // Update top items
+            const itemsContainer = document.getElementById('top-items');
+            itemsContainer.innerHTML = '';
+            data.top_items.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'item-row';
+                row.innerHTML = `
+                    <div class="item-info">
+                        <span class="item-icon">${item.icon}</span>
+                        <div>
+                            <p class="item-name">${item.name}</p>
+                            <p class="item-detail">${item.quantity}</p>
+                        </div>
+                    </div>
+                    <span class="item-price">${item.price}</span>
+                `;
+                itemsContainer.appendChild(row);
+            });
+
+            // Update inventory
+            document.getElementById('inventory-total').textContent = data.inventory_weight.total + ' kg';
+            const legendContainer = document.getElementById('inventory-legend');
+            legendContainer.innerHTML = '';
+            data.inventory_weight.items.forEach(item => {
+                const legendItem = document.createElement('div');
+                legendItem.className = 'legend-item';
+                legendItem.innerHTML = `
+                    <span class="legend-color" style="background: ${item.color};"></span>
+                    <span>${item.name}</span>
+                `;
+                legendContainer.appendChild(legendItem);
+            });
+
+            // Update charts
+            updateCharts(data);
+
+            console.log('Dashboard data updated:', data);
+        })
+        .catch(error => {
+            console.error('Error fetching dashboard data:', error);
+        });
+}
+
+// Update charts with fetched data
+function updateCharts(data) {
+    // Update revenue chart
+    updateRevenueChart(data.weekly_revenue.labels, data.weekly_revenue.revenue, data.weekly_revenue.expense);
+    
+    // Update inventory pie chart
+    const inventoryItems = data.inventory_weight.items.map(item => ({
+        name: item.name,
+        weight: (item.percentage / 100) * data.inventory_weight.total,
+        color: item.color
+    }));
+    updateInventoryPieChart(inventoryItems, data.inventory_weight.total);
 }
 
 // Refresh data every 5 minutes

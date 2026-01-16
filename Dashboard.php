@@ -9,11 +9,11 @@ session_start();
 // include_once 'config/database.php';
 // include_once 'includes/functions.php';
 
-// Check if user is logged in (placeholder)
-// if (!isset($_SESSION['user_id'])) {
-//     header("Location: login.php");
-//     exit();
-// }
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: Login.php");
+    exit();
+}
 
 require_once __DIR__ . '/db_connect.php';
 
@@ -21,117 +21,222 @@ require_once __DIR__ . '/db_connect.php';
 $username = isset($_SESSION['username']) ? $_SESSION['username'] : 'ExoticNellie69';
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
 
-// Placeholder data functions (replace with database queries later)
+// Data functions backed by SQL Server (safe defaults if queries fail)
+
+function humanizeTimeAgo($datetime) {
+    if (!$datetime) return '';
+    try {
+        $ts = is_object($datetime) ? $datetime->getTimestamp() : strtotime($datetime);
+        $diff = time() - $ts;
+        if ($diff < 60) return 'just now';
+        $units = [
+            31536000 => 'year',
+            2592000  => 'month',
+            604800   => 'week',
+            86400    => 'day',
+            3600     => 'hour',
+            60       => 'minute'
+        ];
+        foreach ($units as $sec => $name) {
+            if ($diff >= $sec) {
+                $val = floor($diff / $sec);
+                return $val . ' ' . $name . ($val > 1 ? 's' : '') . ' ago';
+            }
+        }
+        return 'just now';
+    } catch (Throwable $e) {
+        return '';
+    }
+}
 
 function getTodayRevenue() {
-    // TODO: Replace with database query
-    // $query = "SELECT SUM(amount) as total FROM transactions WHERE DATE(created_at) = CURDATE() AND type = 'sale'";
-    return 69.00;
+    global $conn;
+    if (!$conn) return 0.0;
+    $sql = "SELECT SUM(ei.Quantity * ei.PriceAtTime) AS Total
+            FROM Exchanged_Items ei
+            JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
+            WHERE CAST(e.Exchange_Date AS DATE) = CAST(GETDATE() AS DATE)
+              AND e.Exchange_Type LIKE '%COMPLETED%'";
+    $stmt = sqlsrv_query($conn, $sql);
+    if ($stmt === false) return 0.0;
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    return isset($row['Total']) ? floatval($row['Total']) : 0.0;
 }
 
 function getTotalItemsInStock() {
-    // TODO: Replace with database query
-    // $query = "SELECT SUM(quantity) as total FROM inventory WHERE quantity > 0";
-    return 89;
+    global $conn;
+    if (!$conn) return 0;
+    $sql = "SELECT SUM(Item_Quantity) AS Total FROM Inventory";
+    $stmt = sqlsrv_query($conn, $sql);
+    if ($stmt === false) return 0;
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    return isset($row['Total']) ? intval($row['Total']) : 0;
 }
 
 function getTodayTransactionsCount() {
-    // TODO: Replace with database query
-    // $query = "SELECT COUNT(*) as total FROM transactions WHERE DATE(created_at) = CURDATE()";
-    return 2;
+    global $conn;
+    if (!$conn) return 0;
+    $sql = "SELECT COUNT(*) AS Total FROM Exchange
+            WHERE CAST(Exchange_Date AS DATE) = CAST(GETDATE() AS DATE)";
+    $stmt = sqlsrv_query($conn, $sql);
+    if ($stmt === false) return 0;
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    return isset($row['Total']) ? intval($row['Total']) : 0;
 }
 
 function getMostWeightedItem() {
-    // TODO: Replace with database query
-    // $query = "SELECT MAX(weight) as max_weight FROM inventory";
-    return 65;
+    global $conn;
+    if (!$conn) return 0;
+    $sql = "SELECT TOP 1 ISNULL(Item_Weight, 0) AS MaxWeight
+            FROM Inventory
+            ORDER BY Item_Weight DESC";
+    $stmt = sqlsrv_query($conn, $sql);
+    if ($stmt === false) return 0;
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    return isset($row['MaxWeight']) ? floatval($row['MaxWeight']) : 0;
 }
 
 function getRecentTransactions($limit = 3) {
-    // TODO: Replace with database query
-    // $query = "SELECT * FROM transactions ORDER BY created_at DESC LIMIT $limit";
-    
-    return [
-        [
-            'type' => 'bought',
-            'item_name' => 'Tin Cans',
-            'quantity' => '10 pcs',
-            'time_ago' => '5 minutes ago',
-            'icon' => '📦'
-        ],
-        [
-            'type' => 'sold',
-            'item_name' => 'Paper Boxes',
-            'quantity' => '23 kg',
-            'time_ago' => '5 minutes ago',
-            'icon' => '💰'
-        ],
-        [
-            'type' => 'customer',
-            'item_name' => 'Christine Candasan',
-            'quantity' => '',
-            'time_ago' => '5 minutes ago',
-            'icon' => '👤'
-        ]
-    ];
+    global $conn;
+    if (!$conn) return [];
+    $sql = "SELECT TOP ($limit)
+                e.Exchange_Type,
+                e.Exchange_Date,
+                e.Total_No_Of_Items,
+                c.Name AS CustomerName
+            FROM Exchange e
+            JOIN Customer c ON e.Customer_ID = c.CustomerID
+            ORDER BY e.Exchange_Date DESC";
+    $stmt = sqlsrv_query($conn, $sql);
+    if ($stmt === false) return [];
+    $out = [];
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $etype = strtolower((string)$row['Exchange_Type']);
+        $type = (strpos($etype, 'sell') !== false || strpos($etype, 'sold') !== false) ? 'sold'
+              : ((strpos($etype, 'buy') !== false || strpos($etype, 'bought') !== false) ? 'bought' : 'exchange');
+        $icon = $type === 'sold' ? '💰' : ($type === 'bought' ? '📦' : '🔄');
+        $out[] = [
+            'type' => $type,
+            'item_name' => $row['CustomerName'],
+            'quantity' => ($row['Total_No_Of_Items'] !== null ? intval($row['Total_No_Of_Items']).' items' : ''),
+            'time_ago' => humanizeTimeAgo($row['Exchange_Date']),
+            'icon' => $icon
+        ];
+    }
+    return $out;
 }
 
 function getWeeklyRevenueData() {
-    // TODO: Replace with database query
-    // $query = "SELECT DATE(created_at) as date, SUM(amount) as revenue 
-    //           FROM transactions WHERE type = 'sale' 
-    //           AND created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-    //           GROUP BY DATE(created_at)";
-    
+    global $conn;
+    // Prepare last 7 days labels
+    $labels = [];
+    $start = strtotime('-6 days');
+    for ($i = 0; $i < 7; $i++) {
+        $labels[] = date('l', strtotime("+$i day", $start));
+    }
+    $revenueMap = array_fill_keys($labels, 0.0);
+
+    if ($conn) {
+        $sql = "SELECT CAST(e.Exchange_Date AS DATE) AS d,
+                       SUM(ei.Quantity * ei.PriceAtTime) AS Rev
+                FROM Exchanged_Items ei
+                JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
+                WHERE e.Exchange_Date >= DATEADD(day, -6, CAST(GETDATE() AS DATE))
+                GROUP BY CAST(e.Exchange_Date AS DATE)";
+        $stmt = sqlsrv_query($conn, $sql);
+        if ($stmt !== false) {
+            while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                $dayname = date('l', strtotime($row['d']->format('Y-m-d')));
+                $revenueMap[$dayname] = floatval($row['Rev']);
+            }
+        }
+    }
+
     return [
-        'labels' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
-        'revenue' => [6000, 6500, 3000, 5000, 4500, 5500, 5000],
-        'expense' => [4000, 4500, 2000, 5500, 3000, 6000, 14000]
+        'labels' => $labels,
+        'revenue' => array_values($revenueMap),
+        'expense' => array_fill(0, 7, 0) // placeholder until expense tracking exists
     ];
 }
 
 function getTopItemsBySale($limit = 5) {
-    // TODO: Replace with database query
-    // $query = "SELECT item_name, SUM(quantity) as total_qty, SUM(total_amount) as total_sales
-    //           FROM transaction_items GROUP BY item_name ORDER BY total_sales DESC LIMIT $limit";
-    
-    return [
-        ['name' => 'Tin Cans', 'quantity' => '438 pcs', 'price' => '₱6,942.00', 'icon' => '🥫'],
-        ['name' => 'White Paper', 'quantity' => '294 kg', 'price' => '₱4,708.00', 'icon' => '📄'],
-        ['name' => 'Metal', 'quantity' => '203 kg', 'price' => '₱4,671.00', 'icon' => '🔩'],
-        ['name' => 'Cardboard', 'quantity' => '171 kg', 'price' => '₱2,056.00', 'icon' => '📦'],
-        ['name' => 'Plastic Bottles', 'quantity' => '644 pcs', 'price' => '₱2,903.00', 'icon' => '🍾']
-    ];
+    global $conn;
+    if (!$conn) return [];
+    $sql = "SELECT TOP ($limit)
+                i.Item_Name AS Name,
+                SUM(ei.Quantity) AS TotalQty,
+                SUM(ei.Quantity * ei.PriceAtTime) AS TotalSales
+            FROM Exchanged_Items ei
+            JOIN Inventory i ON ei.Item_ID = i.ItemID
+            JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
+            WHERE e.Exchange_Type LIKE '%COMPLETED%'
+            GROUP BY i.Item_Name
+            ORDER BY TotalSales DESC";
+    $stmt = sqlsrv_query($conn, $sql);
+    if ($stmt === false) return [];
+    $items = [];
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $items[] = [
+            'name' => $row['Name'],
+            'quantity' => intval($row['TotalQty']).' pcs',
+            'price' => '₱'.number_format(floatval($row['TotalSales']), 2),
+            'icon' => '📦'
+        ];
+    }
+    return $items;
 }
 
 function getInventoryByWeight($limit = 5) {
-    // TODO: Replace with database query
-    // $query = "SELECT item_name, SUM(weight) as total_weight 
-    //           FROM inventory GROUP BY item_name ORDER BY total_weight DESC LIMIT $limit";
-    
-    return [
-        'total' => 1325,
-        'items' => [
-            ['name' => 'White Paper', 'percentage' => 30.2, 'color' => '#E8B4F5'],
-            ['name' => 'Cardboard Box', 'percentage' => 22.6, 'color' => '#7DD3FC'],
-            ['name' => 'Tin Cans', 'percentage' => 18.9, 'color' => '#FDE047'],
-            ['name' => 'Plastic Bottles', 'percentage' => 15.1, 'color' => '#60A5FA'],
-            ['name' => 'Metals', 'percentage' => 13.2, 'color' => '#A78BFA']
-        ]
-    ];
+    global $conn;
+    if (!$conn) return ['total' => 0, 'items' => []];
+    $sqlTotal = "SELECT SUM(ISNULL(Item_Weight,0)) AS TotalWeight FROM Inventory";
+    $stmtTotal = sqlsrv_query($conn, $sqlTotal);
+    $total = 0.0;
+    if ($stmtTotal !== false) {
+        $rowT = sqlsrv_fetch_array($stmtTotal, SQLSRV_FETCH_ASSOC);
+        $total = isset($rowT['TotalWeight']) ? floatval($rowT['TotalWeight']) : 0.0;
+    }
+
+    $sqlTop = "SELECT TOP ($limit) Item_Name, SUM(ISNULL(Item_Weight,0)) AS W
+               FROM Inventory
+               GROUP BY Item_Name
+               ORDER BY W DESC";
+    $stmtTop = sqlsrv_query($conn, $sqlTop);
+    $colors = ['#E8B4F5', '#7DD3FC', '#FDE047', '#60A5FA', '#A78BFA'];
+    $items = [];
+    $i = 0;
+    if ($stmtTop !== false && $total > 0) {
+        while ($row = sqlsrv_fetch_array($stmtTop, SQLSRV_FETCH_ASSOC)) {
+            $pct = ($row['W'] > 0) ? (floatval($row['W']) / $total) * 100.0 : 0.0;
+            $items[] = [
+                'name' => $row['Item_Name'],
+                'percentage' => round($pct, 1),
+                'color' => $colors[$i % count($colors)]
+            ];
+            $i++;
+        }
+    }
+    return ['total' => round($total, 2), 'items' => $items];
 }
 
 function getNetProfit() {
-    // TODO: Replace with database query
-    // $query = "SELECT 
-    //           (SELECT SUM(amount) FROM transactions WHERE type = 'sale') - 
-    //           (SELECT SUM(amount) FROM transactions WHERE type = 'purchase') as net_profit";
-    
-    return '₱67,676,767.00';
+    global $conn;
+    if (!$conn) return '₱0.00';
+    $sql = "SELECT SUM(ei.Quantity * (ei.PriceAtTime - i.Buying_Price)) AS Profit
+            FROM Exchanged_Items ei
+            JOIN Inventory i ON ei.Item_ID = i.ItemID
+            JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
+            WHERE e.Exchange_Type LIKE '%COMPLETED%'";
+    $stmt = sqlsrv_query($conn, $sql);
+    if ($stmt === false) return '₱0.00';
+    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    $profit = isset($row['Profit']) ? floatval($row['Profit']) : 0.0;
+    return '₱'.number_format($profit, 2);
 }
 
 // Get all dashboard data
 $dashboard_data = [
+    'username' => $username,
     'today_revenue' => getTodayRevenue(),
     'total_items' => getTotalItemsInStock(),
     'today_transactions' => getTodayTransactionsCount(),
