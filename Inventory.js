@@ -19,6 +19,7 @@ function loadInventoryFromPHP() {
             inventoryItems = data.data.map(item => ({
                 id: item.id,
                 name: item.name,
+                categoryId: item.category_id,
                 category: item.category,
                 qtyType: item.qty_type,
                 quantity: item.quantity,
@@ -37,6 +38,35 @@ function loadInventoryFromPHP() {
         console.error('Error fetching inventory:', err);
         renderInventoryTable([]);
     });
+}
+
+// Load categories and populate select
+function loadCategories() {
+    const select = document.getElementById('itemCategory');
+    
+    // Only load if not already populated
+    if (select.options.length > 1) {
+        return; // Already has options from PHP
+    }
+    
+    fetch('./Inventory.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'get_categories' })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+            select.innerHTML = '<option value="">Select Category</option>';
+            data.data.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.CategoryID;
+                option.textContent = cat.Category_Name;
+                select.appendChild(option);
+            });
+        }
+    })
+    .catch(err => console.error('Error loading categories:', err));
 }
 
 // Setup all event listeners
@@ -72,6 +102,8 @@ function setupEventListeners() {
             closeItemModal();
         }
     });
+
+    loadCategories();
 }
 
 // Render inventory table
@@ -184,7 +216,7 @@ function editItem(id) {
     currentEditId = id;
     document.getElementById('modalTitle').textContent = 'Edit Item';
     document.getElementById('itemName').value = item.name;
-    document.getElementById('itemCategory').value = item.category;
+    document.getElementById('itemCategory').value = item.categoryId;
     document.getElementById('qtyType').value = item.qtyType;
     document.getElementById('quantity').value = item.quantity;
     document.getElementById('buyingPrice').value = item.buyingPrice;

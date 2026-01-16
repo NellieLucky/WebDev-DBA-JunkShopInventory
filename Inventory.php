@@ -38,6 +38,9 @@ if (isset($_POST['action'])) {
         case 'search':
             echo json_encode(searchInventoryItems($_POST['search']));
             break;
+        case 'get_categories':
+            echo json_encode(['success' => true, 'data' => getCategories()]);
+            break;
     }
     exit();
 }
@@ -58,15 +61,17 @@ function getCategories() {
         return []; // prevents fatal error
     }
 
-    $stmt = sqlsrv_query($conn, "EXEC sp_GetCategories");
+    // Use direct query to get categories
+    $sql = "SELECT CategoryID, Category_Name FROM Categories ORDER BY Category_Name";
+    $stmt = sqlsrv_query($conn, $sql);
 
     if ($stmt === false) {
-        // Optional: log sqlsrv_errors() for debugging
+        // Log error for debugging
+        error_log("getCategories query failed: " . print_r(sqlsrv_errors(), true));
         return [];
     }
 
     $cats = [];
-
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
         $cats[] = $row;
     }
@@ -75,6 +80,49 @@ function getCategories() {
 }
 
 $categories = getCategories();
+
+// Get inventory data for initial display
+function getAllInventoryItems() {
+    global $conn;
+
+    // Try direct query first
+    $sql = "SELECT i.ItemID, i.Item_Name, i.CategoryID, c.Category_Name, i.Item_Quantity, i.Item_Weight, i.Buying_Price, i.Selling_Price 
+            FROM Inventory i 
+            LEFT JOIN Categories c ON i.CategoryID = c.CategoryID 
+            ORDER BY i.Item_Name";
+    
+    $stmt = sqlsrv_query($conn, $sql);
+
+    if ($stmt === false) {
+        // Fallback to stored procedure
+        $sql = "EXEC sp_GetInventory";
+        $stmt = sqlsrv_query($conn, $sql);
+        
+        if ($stmt === false) {
+            return ['success' => false, 'error' => sqlsrv_errors()];
+        }
+    }
+
+    $data = [];
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $qty_type = $row['Item_Weight'] > 0 ? 'Kilo' : 'Piraso';
+        $data[] = [
+            'id' => $row['ItemID'] ?? $row['ItemId'],
+            'name' => $row['Item_Name'],
+            'category_id' => $row['CategoryID'],
+            'category' => $row['Category_Name'],
+            'qty_type' => $qty_type,
+            'quantity' => $row['Item_Quantity'],
+            'weight' => $row['Item_Weight'],
+            'buying_price' => $row['Buying_Price'],
+            'selling_price' => $row['Selling_Price']
+        ];
+    }
+
+    return ['success' => true, 'data' => $data];
+}
+
+$inventoryData = getAllInventoryItems();
 
 ?>
 <!DOCTYPE html>
@@ -212,7 +260,35 @@ $categories = getCategories();
                         </tr>
                     </thead>
                     <tbody id="inventoryTableBody">
-                        <!-- Data will be loaded by JavaScript -->
+                        <?php if ($inventoryData['success'] && !empty($inventoryData['data'])): ?>
+                            <?php foreach ($inventoryData['data'] as $item): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($item['name']); ?></td>
+                                    <td><?php echo htmlspecialchars($item['category']); ?></td>
+                                    <td><?php echo htmlspecialchars($item['qty_type']); ?></td>
+                                    <td><?php echo htmlspecialchars($item['quantity']) . ($item['qty_type'] === 'Kilo' ? ' kg' : ' pieces'); ?></td>
+                                    <td style="text-align: left;">₱<?php echo number_format($item['buying_price'], 2); ?></td>
+                                    <td style="text-align: left;">₱<?php echo number_format($item['selling_price'], 2); ?></td>
+                                    <td><?php echo date('Y-m-d'); ?></td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="action-btn edit-btn" onclick="editItem(<?php echo $item['id']; ?>)" title="Edit">
+                                                <span>✏️</span>
+                                            </button>
+                                            <button class="action-btn delete-btn" onclick="deleteItem(<?php echo $item['id']; ?>)" title="Delete">
+                                                <span>🗑️</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="8" style="text-align: center; padding: 40px; color: #a0aec0;">
+                                    <?php echo $inventoryData['success'] ? 'No items found' : 'Error loading inventory'; ?>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>
@@ -235,14 +311,12 @@ $categories = getCategories();
                     </div>
                     <div class="form-group">
                         <label for="itemCategory">Category</label>
-                        <select id="itemCategory" name="category_id" required>
-                            <option value="">Select Category</option>
+                        <input type="text" id="itemCategory" name="category_name" required list="categories">
+                        <datalist id="categories">
                             <?php foreach ($categories as $cat): ?>
-                                <option value="<?= $cat['CategoryID'] ?>">
-                                    <?= htmlspecialchars($cat['Category_Name']) ?>
-                                </option>
+                                <option value="<?= htmlspecialchars($cat['Category_Name']) ?>">
                             <?php endforeach; ?>
-                        </select>
+                        </datalist>
                     </div>
                     <div class="form-group">
                         <label for="qtyType">Quantity Type</label>
