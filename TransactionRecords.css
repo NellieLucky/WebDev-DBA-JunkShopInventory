@@ -401,6 +401,39 @@ body {
     padding: 24px;
 }
 
+/* Transaction Summary */
+.transaction-summary {
+    padding: 20px;
+    background: #f7fafc;
+    border-radius: 8px;
+    margin-bottom: 24px;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+.summary-row .label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #718096;
+    text-transform: uppercase;
+}
+
+.summary-row .value {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a202c;
+}
+
 /* Detail Grid */
 .detail-grid {
     display: grid;

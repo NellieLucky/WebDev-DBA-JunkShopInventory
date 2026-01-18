@@ -1,98 +1,43 @@
 // ScrapTrack Transaction Records JavaScript
 
-// Sample transaction records data (replace with database later)
-let transactionRecords = [
-    {
-        id: 1,
-        date: "2025-12-23",
-        type: "Received",
-        customer: "Gwyneth",
-        noOfItems: 1,
-        totalPiece: 69,
-        totalKilo: 0,
-        totalAmount: 69.00,
-        items: [
-            {
-                name: "Glass Bottle",
-                category: "Babasagin",
-                qtyType: "Piraso",
-                quantity: 69,
-                price: 69.00,
-                amount: 69.00
-            }
-        ]
-    },
-    {
-        id: 2,
-        date: "2025-12-23",
-        type: "Dispatched",
-        customer: "Christine",
-        noOfItems: 5,
-        totalPiece: 69,
-        totalKilo: 69,
-        totalAmount: 345.00,
-        items: [
-            {
-                name: "Glass Bottle",
-                category: "Babasagin",
-                qtyType: "Piraso",
-                quantity: 20,
-                price: 69.00,
-                amount: 1380.00
-            },
-            {
-                name: "White Paper",
-                category: "Paper",
-                qtyType: "Kilo",
-                quantity: 30,
-                price: 45.00,
-                amount: 1350.00
-            },
-            {
-                name: "Cardboard",
-                category: "Paper",
-                qtyType: "Kilo",
-                quantity: 19,
-                price: 35.00,
-                amount: 665.00
-            }
-        ]
-    },
-    {
-        id: 3,
-        date: "2025-12-23",
-        type: "Received",
-        customer: "Juan",
-        noOfItems: 6,
-        totalPiece: 50,
-        totalKilo: 120,
-        totalAmount: 4500.00,
-        items: [
-            {
-                name: "Metal",
-                category: "Metal",
-                qtyType: "Kilo",
-                quantity: 100,
-                price: 40.00,
-                amount: 4000.00
-            },
-            {
-                name: "Plastic Bottles",
-                category: "Plastic",
-                qtyType: "Piraso",
-                quantity: 50,
-                price: 10.00,
-                amount: 500.00
-            }
-        ]
-    }
-];
+// Store transaction records fetched from backend
+let transactionRecords = [];
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
-    renderTransactionRecords();
+    loadTransactionRecords();
 });
+
+// Load transaction records from backend
+async function loadTransactionRecords() {
+    try {
+        const formData = new FormData();
+        formData.append('action', 'get_records');
+        
+        const response = await fetch('TransactionRecords.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            transactionRecords = result.data;
+            renderTransactionRecords();
+        } else {
+            showNotification(result.error || 'Failed to load transaction records', 'error');
+            // Show error message in table
+            const tbody = document.getElementById('recordsTableBody');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #f56565;">Failed to load records. Please try again.</td></tr>';
+        }
+    } catch (error) {
+        console.error('Error loading transaction records:', error);
+        showNotification('Network error. Please check your connection.', 'error');
+        const tbody = document.getElementById('recordsTableBody');
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #f56565;">Network error. Please try again.</td></tr>';
+    }
+}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -148,41 +93,67 @@ function formatDate(dateString) {
 }
 
 // View transaction details
-function viewTransaction(id) {
-    const record = transactionRecords.find(r => r.id === id);
-    if (!record) {
-        showNotification('Transaction not found', 'error');
-        return;
+async function viewTransaction(id) {
+    try {
+        const formData = new FormData();
+        formData.append('action', 'get_transaction_detail');
+        formData.append('transaction_id', id);
+        
+        const response = await fetch('TransactionRecords.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const record = result.data;
+            
+            // Populate modal with transaction details
+            document.getElementById('detailId').textContent = record.id;
+            document.getElementById('detailDate').textContent = formatDate(record.date);
+            document.getElementById('detailType').textContent = record.type;
+            document.getElementById('detailCustomer').textContent = record.customer;
+            document.getElementById('detailEmployee').textContent = record.employee || 'N/A';
+            document.getElementById('detailItems').textContent = record.noOfItems === 1 ? '1 item' : `${record.noOfItems} items`;
+            document.getElementById('detailPiece').textContent = `${record.totalPiece} pcs`;
+            document.getElementById('detailKilo').textContent = `${record.totalKilo} kg`;
+            document.getElementById('detailAmount').textContent = `₱${parseFloat(record.totalAmount).toFixed(2)}`;
+            
+            // Populate items table
+            const itemsBody = document.getElementById('detailItemsBody');
+            if (record.items && record.items.length > 0) {
+                itemsBody.innerHTML = record.items.map(item => {
+                    // Determine if it's by kilo or piece based on category
+                    const weightCategories = ['Paper', 'Metals', 'Plastics'];
+                    const isKilo = weightCategories.includes(item.category);
+                    const qtyType = isKilo ? 'Kilo' : 'Piece';
+                    const unit = isKilo ? ' kg' : ' pcs';
+                    
+                    return `
+                        <tr>
+                            <td>${item.name}</td>
+                            <td>${item.category}</td>
+                            <td>${qtyType}</td>
+                            <td>${item.quantity}${unit}</td>
+                            <td>₱${parseFloat(item.price).toFixed(2)}</td>
+                            <td>₱${parseFloat(item.amount).toFixed(2)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                itemsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No items found</td></tr>';
+            }
+            
+            // Show modal
+            document.getElementById('detailModal').classList.add('active');
+        } else {
+            showNotification(result.error || 'Failed to load transaction details', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading transaction details:', error);
+        showNotification('Failed to load transaction details', 'error');
     }
-    
-    // Populate modal with transaction details
-    document.getElementById('detailId').textContent = record.id;
-    document.getElementById('detailDate').textContent = record.date;
-    document.getElementById('detailType').textContent = record.type;
-    document.getElementById('detailCustomer').textContent = record.customer;
-    document.getElementById('detailItems').textContent = record.noOfItems === 1 ? '1 item' : `${record.noOfItems} items`;
-    document.getElementById('detailPiece').textContent = `${record.totalPiece} pcs`;
-    document.getElementById('detailKilo').textContent = `${record.totalKilo} kg`;
-    document.getElementById('detailAmount').textContent = `₱${record.totalAmount.toFixed(2)}`;
-    
-    // Populate items table
-    const itemsBody = document.getElementById('detailItemsBody');
-    itemsBody.innerHTML = record.items.map(item => {
-        const unit = item.qtyType === 'Kilo' ? 'kg' : ' pcs';
-        return `
-            <tr>
-                <td>${item.name}</td>
-                <td>${item.category}</td>
-                <td>${item.qtyType}</td>
-                <td>${item.quantity}${unit}</td>
-                <td>₱${item.price.toFixed(2)}</td>
-                <td>₱${item.amount.toFixed(2)}</td>
-            </tr>
-        `;
-    }).join('');
-    
-    // Show modal
-    document.getElementById('detailModal').classList.add('active');
 }
 
 // Close detail modal
@@ -204,25 +175,40 @@ function printTransaction() {
 }
 
 // Handle search
-function handleSearch(e) {
-    const searchTerm = e.target.value.toLowerCase().trim();
+async function handleSearch(e) {
+    const searchTerm = e.target.value.trim();
     
     if (searchTerm === '') {
-        renderTransactionRecords();
+        // Reload all records if search is cleared
+        loadTransactionRecords();
         return;
     }
     
-    const filteredRecords = transactionRecords.filter(record => 
-        record.id.toString().includes(searchTerm) ||
-        record.type.toLowerCase().includes(searchTerm) ||
-        record.customer.toLowerCase().includes(searchTerm) ||
-        record.date.includes(searchTerm)
-    );
-    
-    renderTransactionRecords(filteredRecords);
-    
-    if (filteredRecords.length === 0) {
-        showNotification('No matching transactions found', 'info');
+    try {
+        const formData = new FormData();
+        formData.append('action', 'search_records');
+        formData.append('search', searchTerm);
+        
+        const response = await fetch('TransactionRecords.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            transactionRecords = result.data;
+            renderTransactionRecords();
+            
+            if (result.data.length === 0) {
+                showNotification('No matching transactions found', 'info');
+            }
+        } else {
+            showNotification(result.error || 'Search failed', 'error');
+        }
+    } catch (error) {
+        console.error('Error searching transactions:', error);
+        showNotification('Search failed', 'error');
     }
 }
 
@@ -281,7 +267,7 @@ function handleFilter() {
 function handleAdd() {
     if (confirm('Do you want to create a new transaction?')) {
         // Redirect to Transaction page
-        window.location.href = 'Transaction.html';
+        window.location.href = 'Transaction.php';
     }
 }
 
