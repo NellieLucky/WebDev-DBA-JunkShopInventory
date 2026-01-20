@@ -182,6 +182,70 @@ function getWeeklyRevenueData() {
     ];
 }
 
+function getWeeklyTransactionsCounts() {
+    global $conn;
+    $labels = [];
+    $start = strtotime('-6 days');
+    for ($i = 0; $i < 7; $i++) {
+        $labels[] = date('D', strtotime("+$i day", $start));
+    }
+    $countsMap = array_fill_keys($labels, 0);
+
+    if ($conn) {
+        $sql = "SELECT CAST(Exchange_Date AS DATE) AS d, COUNT(*) AS C
+                FROM Exchange
+                WHERE Exchange_Date >= DATEADD(day, -6, CAST(GETDATE() AS DATE))
+                GROUP BY CAST(Exchange_Date AS DATE)";
+        $stmt = sqlsrv_query($conn, $sql);
+        if ($stmt !== false) {
+            while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                $dayname = date('D', strtotime($row['d']->format('Y-m-d')));
+                $countsMap[$dayname] = intval($row['C']);
+            }
+        }
+    }
+
+    return [
+        'labels' => $labels,
+        'counts' => array_values($countsMap)
+    ];
+}
+
+function getMonthlyRevenueExpense() {
+    global $conn;
+    $labels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    $revenue = array_fill(0, 12, 0.0);
+    $expense = array_fill(0, 12, 0.0);
+
+    if ($conn) {
+        $sql = "SELECT MONTH(e.Exchange_Date) AS m,
+                       SUM(ei.Quantity * ei.PriceAtTime) AS Rev,
+                       SUM(ei.Quantity * i.Buying_Price) AS Exp
+                FROM Exchanged_Items ei
+                JOIN Inventory i ON ei.Item_ID = i.ItemID
+                JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
+                WHERE YEAR(e.Exchange_Date) = YEAR(GETDATE())
+                  AND e.Exchange_Type LIKE '%COMPLETED%'
+                GROUP BY MONTH(e.Exchange_Date)";
+        $stmt = sqlsrv_query($conn, $sql);
+        if ($stmt !== false) {
+            while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+                $idx = intval($row['m']) - 1;
+                if ($idx >= 0 && $idx < 12) {
+                    $revenue[$idx] = floatval($row['Rev']);
+                    $expense[$idx] = floatval($row['Exp']);
+                }
+            }
+        }
+    }
+
+    return [
+        'labels' => $labels,
+        'revenue' => $revenue,
+        'expense' => $expense
+    ];
+}
+
 function getTopItemsBySale($limit = 5) {
     global $conn;
     if (!$conn) return [];
@@ -266,9 +330,11 @@ $dashboard_data = [
     'most_weighted_item' => getMostWeightedItem(),
     'recent_transactions' => getRecentTransactions(),
     'weekly_revenue' => getWeeklyRevenueData(),
+    'weekly_transactions' => getWeeklyTransactionsCounts(),
     'top_items' => getTopItemsBySale(),
     'inventory_weight' => getInventoryByWeight(),
-    'net_profit' => getNetProfit()
+    'net_profit' => getNetProfit(),
+    'monthly_revexp' => getMonthlyRevenueExpense()
 ];
 
 // If this is an AJAX request, return JSON

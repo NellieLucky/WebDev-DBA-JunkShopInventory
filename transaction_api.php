@@ -85,13 +85,17 @@ function getCustomers() {
 function createTransaction($data) {
     global $conn;
 
-    $customerName = trim($data['customer_name']);
-    $operationType = $data['operation_type'];
+    $customerId = isset($data['customer_id']) ? intval($data['customer_id']) : 0;
+    $operationType = $data['operation_type'] ?? '';
 
-    // First, find or create customer
-    $customerId = getOrCreateCustomer($customerName);
-    if (!$customerId) {
-        return ['success' => false, 'error' => 'Failed to create/find customer'];
+    if ($customerId <= 0) {
+        return ['success' => false, 'error' => 'Customer is required'];
+    }
+
+    // Ensure customer exists
+    $check = sqlsrv_query($conn, "SELECT 1 FROM Customer WHERE CustomerID = ?", [$customerId]);
+    if (!$check || !sqlsrv_fetch($check)) {
+        return ['success' => false, 'error' => 'Selected customer not found'];
     }
 
     // Get current user ID (placeholder for now)

@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSummary();
     updateStockInfo();
     loadInventoryItems();
+    loadCustomers();
 });
 
 // Setup all event listeners
@@ -60,6 +61,54 @@ function loadInventoryItems() {
         console.error('Error loading inventory:', error);
         showNotification('Error loading inventory items', 'error');
     });
+}
+
+// Load customers from database
+function loadCustomers() {
+    fetch('transaction_api.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: 'action=get_customers'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            populateCustomerSelect(data.data);
+        } else {
+            showNotification('Failed to load customers', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading customers:', error);
+        showNotification('Error loading customers', 'error');
+    });
+}
+
+function populateCustomerSelect(customers) {
+    const select = document.getElementById('customerSelect');
+    if (!select) return;
+    const current = select.value;
+    select.innerHTML = '<option value="">-- Select a Customer --</option>';
+    customers.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        select.appendChild(opt);
+    });
+
+    // Auto-select last added by name if available
+    if (window.lastAddedCustomerName) {
+        const options = Array.from(select.options);
+        const match = options.find(o => o.textContent && o.textContent.toLowerCase() === String(window.lastAddedCustomerName).toLowerCase());
+        if (match) {
+            select.value = match.value;
+            showNotification('Selected newly added customer', 'info');
+        }
+    } else if (current) {
+        select.value = current;
+    }
 }
 
 // Populate item select dropdown
@@ -270,7 +319,9 @@ function deleteTransaction(id) {
 // Save transaction
 function saveTransaction() {
     const operationType = document.getElementById('operationType').value;
-    const customerName = document.getElementById('customerName').value.trim();
+    const customerSelect = document.getElementById('customerSelect');
+    const customerId = customerSelect ? customerSelect.value : '';
+    const customerName = customerSelect && customerSelect.options[customerSelect.selectedIndex] ? customerSelect.options[customerSelect.selectedIndex].text : '';
 
     // Validation
     if (!operationType) {
@@ -278,8 +329,8 @@ function saveTransaction() {
         return;
     }
 
-    if (!customerName) {
-        showNotification('Please enter customer name', 'error');
+    if (!customerId) {
+        showNotification('Please select a registered customer', 'error');
         return;
     }
 
@@ -289,15 +340,15 @@ function saveTransaction() {
     }
 
     // Create transaction and add all items
-    createAndCompleteTransaction(operationType, customerName);
+    createAndCompleteTransaction(operationType, customerId, customerName);
 }
 
 // Create transaction and add all items
-function createAndCompleteTransaction(operationType, customerName) {
+function createAndCompleteTransaction(operationType, customerId, customerName) {
     // First create the transaction
     const formData = new FormData();
     formData.append('action', 'create_transaction');
-    formData.append('customer_name', customerName);
+    formData.append('customer_id', customerId);
     formData.append('operation_type', operationType);
 
     fetch('transaction_api.php', {
@@ -403,7 +454,8 @@ function clearTransaction() {
 function resetTransactionUI() {
     // Reset UI
     transactionItems = [];
-    document.getElementById('customerName').value = '';
+    const cs = document.getElementById('customerSelect');
+    if (cs) cs.value = '';
     document.getElementById('operationType').value = '';
     document.getElementById('itemSelect').value = '';
     document.getElementById('quantity').value = '';

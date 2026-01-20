@@ -11,6 +11,31 @@ session_start();
 // DB connection
 require_once __DIR__ . '/db_connect.php';
 
+// Handle new customer form submission (same behavior as Dashboard)
+$message = '';
+$last_added_customer = '';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_customer'])) {
+    $name = trim($_POST['customer_name'] ?? '');
+    $type = trim($_POST['customer_type'] ?? '');
+    $contact = trim($_POST['contact_number'] ?? '');
+    $address = trim($_POST['address'] ?? '');
+
+    if (empty($name)) {
+        $message = 'Customer name is required.';
+    } else {
+        $sql = "{call sp_AddCustomer(?, ?, ?, ?)}";
+        $params = [$name, $type ?: null, $contact ?: null, $address ?: null];
+        $stmt = sqlsrv_prepare($conn, $sql, $params);
+
+        if ($stmt && sqlsrv_execute($stmt)) {
+            $message = 'Customer added successfully!';
+            $last_added_customer = $name;
+        } else {
+            $message = 'Failed to add customer. Please try again.';
+        }
+    }
+}
+
 // Get user information
 $username = isset($_SESSION['username']) ? $_SESSION['username'] : 'ExoticNellie69';
 $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
@@ -122,8 +147,13 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
             </div>
 
             <div class="customer-section">
-                <label>Customer Name</label>
-                <input type="text" id="customerName" class="customer-input" placeholder="Customer Name...">
+                <label>Customer</label>
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <select id="customerSelect" class="customer-input">
+                        <option value="">-- Select a Customer --</option>
+                    </select>
+                    <button type="button" class="btn-add" onclick="openCustomerModal()">Add New Customer</button>
+                </div>
             </div>
 
             <!-- Summary Cards -->
@@ -230,6 +260,205 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
         </div>
     </div>
 
+    <script>
+        // Expose last added customer name to JS for auto-select after load
+        window.lastAddedCustomerName = <?php echo json_encode($last_added_customer); ?>;
+    </script>
     <script src="Transaction.js"></script>
+    <script>
+        // Customer modal functions (mirroring Dashboard)
+        function openCustomerModal() {
+            var m = document.getElementById('customerModal');
+            if (m) m.style.display = 'block';
+        }
+
+        function closeCustomerModal() {
+            var m = document.getElementById('customerModal');
+            if (m) m.style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('customerModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    </script>
+
+    <!-- Customer Modal (copied from Dashboard) -->
+    <div id="customerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Customer</h2>
+                <span class="close" onclick="closeCustomerModal()">&times;</span>
+            </div>
+            <form method="POST" action="Transaction.php">
+                <div class="modal-body">
+                    <?php if (!empty($message)): ?>
+                    <div class="message <?php echo strpos($message, 'successfully') !== false ? 'success' : 'error'; ?>">
+                        <?php echo htmlspecialchars($message); ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <div class="form-group">
+                        <label for="customer_name">Customer Name *</label>
+                        <input type="text" id="customer_name" name="customer_name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="customer_type">Customer Type</label>
+                        <select id="customer_type" name="customer_type">
+                            <option value="">Select Type</option>
+                            <option value="Regular">Regular</option>
+                            <option value="VIP">VIP</option>
+                            <option value="Wholesale">Wholesale</option>
+                            <option value="Retail">Retail</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="contact_number">Contact Number</label>
+                        <input type="tel" id="contact_number" name="contact_number">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <textarea id="address" name="address" rows="3"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeCustomerModal()">Cancel</button>
+                    <button type="submit" name="add_customer" class="btn-submit">Add Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <style>
+        /* Scoped modal styles to avoid conflict with invoice modal */
+        #customerModal.modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        #customerModal .modal-content {
+            background-color: #fff;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #customerModal .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #customerModal .modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        #customerModal .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #customerModal .close:hover {
+            color: #000;
+        }
+
+        #customerModal .modal-body {
+            padding: 20px;
+        }
+
+        #customerModal .form-group {
+            margin-bottom: 15px;
+        }
+
+        #customerModal .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        #customerModal .form-group input,
+        #customerModal .form-group select,
+        #customerModal .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        #customerModal .form-group textarea {
+            resize: vertical;
+        }
+
+        #customerModal .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        #customerModal .btn-cancel {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #customerModal .btn-submit {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #customerModal .btn-submit:hover {
+            background-color: #0056b3;
+        }
+
+        #customerModal .message {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+
+        #customerModal .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        #customerModal .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
 </body>
 </html>

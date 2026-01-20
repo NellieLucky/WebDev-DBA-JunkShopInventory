@@ -131,31 +131,55 @@ function initializeCharts() {
     console.log('Initializing charts...');
     
     // Revenue & Expense Chart
-    createRevenueChart();
+    if (typeof dashboardData !== 'undefined') {
+        createRevenueChart(dashboardData.weekly_revenue.labels, dashboardData.weekly_revenue.revenue, dashboardData.weekly_revenue.expense);
+    } else {
+        createRevenueChart(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], [0,0,0,0,0,0,0], [0,0,0,0,0,0,0]);
+    }
     
     // Weekly Transactions Chart
-    createWeeklyChart();
+    if (typeof dashboardData !== 'undefined') {
+        createWeeklyChart(dashboardData.weekly_transactions.labels, dashboardData.weekly_transactions.counts);
+    } else {
+        createWeeklyChart(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], [0,0,0,0,0,0,0]);
+    }
     
     // Net Profit Chart
-    createProfitChart();
+    if (typeof dashboardData !== 'undefined') {
+        createProfitChart(dashboardData.monthly_revexp.labels, dashboardData.monthly_revexp.revenue, dashboardData.monthly_revexp.expense);
+    } else {
+        createProfitChart(['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], new Array(12).fill(0), new Array(12).fill(0));
+    }
 
     // Top Items List
     updateTopItems();
     
     // Inventory Pie Chart
-    createInventoryPieChart();
+    if (typeof dashboardData !== 'undefined') {
+        const invItems = dashboardData.inventory_weight.items.map(item => ({
+            name: item.name,
+            weight: (item.percentage / 100) * dashboardData.inventory_weight.total,
+            color: item.color
+        }));
+        createInventoryPieChart(invItems, dashboardData.inventory_weight.total);
+    }
     
     console.log('All charts initialized!');
 }
 
 // Create Revenue & Expense Trend Chart
-function createRevenueChart(labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], 
-                           revenue = [6000, 6500, 3000, 5000, 4500, 5500, 5000], 
-                           expense = [4000, 4500, 2000, 5500, 3000, 6000, 4000]) {
-    
+function createRevenueChart(labels, revenue, expense) {
+    const canvas = document.getElementById('revenueChart');
+    if (!canvas) {
+        console.error('Revenue chart canvas not found');
+        return;
+    }
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width = canvas.parentElement.offsetWidth;
+    const height = canvas.height = 300;
+
     drawAreaChart(ctx, width, height, labels, revenue, expense);
 
-    // Add hover functionality
     let tooltip = document.getElementById('revenue-tooltip');
     if (!tooltip) {
         tooltip = document.createElement('div');
@@ -171,16 +195,12 @@ function createRevenueChart(labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursda
         document.body.appendChild(tooltip);
     }
 
-    canvas.addEventListener('mousemove', function(event) {
+    canvas.onmousemove = function(event) {
         const rect = canvas.getBoundingClientRect();
         const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-
         const padding = {top: 20, right: 20, bottom: 40, left: 50};
         const chartWidth = width - padding.left - padding.right;
         const stepX = chartWidth / (labels.length - 1);
-
-        // Find the closest index
         const index = Math.round((mouseX - padding.left) / stepX);
         if (index >= 0 && index < labels.length) {
             const rev = revenue[index];
@@ -192,11 +212,9 @@ function createRevenueChart(labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursda
         } else {
             tooltip.style.display = 'none';
         }
-    });
+    };
 
-    canvas.addEventListener('mouseout', function() {
-        tooltip.style.display = 'none';
-    });
+    canvas.onmouseout = function() { tooltip.style.display = 'none'; };
 }
 
 // Update Revenue Chart
@@ -205,7 +223,7 @@ function updateRevenueChart(labels, revenue, expense) {
 }
 
 // Create Weekly Transactions Chart
-function createWeeklyChart() {
+function createWeeklyChart(labels, data) {
     const canvas = document.getElementById('weeklyChart');
     if (!canvas) {
         console.error('Weekly chart canvas not found');
@@ -215,9 +233,6 @@ function createWeeklyChart() {
     const ctx = canvas.getContext('2d');
     const width = canvas.width = canvas.parentElement.offsetWidth;
     const height = canvas.height = 250;
-    
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const data = [8, 12, 16, 20, 18, 28, 24];
     const totalTransactions = data.reduce((sum, value) => sum + value, 0);
     const transactionElement = document.querySelector('.total-badge'); // Kukuhain niya yung may name na class na ito from html
     if (transactionElement) {
@@ -228,7 +243,7 @@ function createWeeklyChart() {
 }
 
 // Create Net Profit Chart
-function createProfitChart() {
+function createProfitChart(labels, revenue, expense) {
     const canvas = document.getElementById('profitChart');
     if (!canvas) {
         console.error('Profit chart canvas not found');
@@ -238,16 +253,13 @@ function createProfitChart() {
     const ctx = canvas.getContext('2d');
     const width = canvas.width = canvas.parentElement.offsetWidth;
     const height = canvas.height = 400;
-    
-    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const revenue = [20000, 55000, 60000, 65000, 30000, 75000, 100000, 80000, 100000, 70000, 85000, 95000];
-    const expense = [10000, 18000, 12000, 20000, 25000, 60000, 70000, 35000, 65000, 55000, 75000, 45000];
     const totalRevenue = revenue.reduce((sum, value) => sum + value, 0);
     const totalExpense = expense.reduce((sum, value) => sum + value, 0);
     const totalProfit = totalRevenue - totalExpense;
-    const profitElement = document.querySelector('.profit-value'); // Kukuhain niya yung may name na class na ito from html
-    if (profitElement) {
-        profitElement.textContent = `₱${totalProfit.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const profitElement = document.querySelector('.profit-value');
+    if (profitElement && typeof dashboardData !== 'undefined') {
+        // Prefer backend-provided net profit value
+        profitElement.textContent = dashboardData.net_profit || `₱${totalProfit.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 
     let currentHoveredIndex = null;
@@ -321,13 +333,7 @@ function createProfitChart() {
 }
 
 // Create Inventory Pie Chart
-function createInventoryPieChart(items = [
-    {name: 'Plastic', weight: 400, color: '#A78BFA'},
-    {name: 'Metal', weight: 300, color: '#7DD3FC'},
-    {name: 'Paper', weight: 250, color: '#FDE047'},
-    {name: 'Glass', weight: 200, color: '#60A5FA'},
-    {name: 'Other', weight: 75, color: '#E8B4F5'}
-], total = 1225) {
+function createInventoryPieChart(items, total) {
     const canvas = document.getElementById('inventoryPie');
     if (!canvas) {
         console.error('Inventory pie chart canvas not found');
@@ -342,16 +348,9 @@ function createInventoryPieChart(items = [
     const data = items.map(item => item.weight);
     const labels = items.map(item => item.name);
     const colors = items.map(item => item.color);
-    const totalWeight = total;
 
-    const legendDiv = document.querySelector('.inventory-legend');
-    legendDiv.innerHTML = '';
-    legendItems.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'legend-item';
-        div.innerHTML = `<span class="legend-color" style="background: ${item.color};"></span><span>${item.label}</span>`;
-        legendDiv.appendChild(div);
-    });
+    // Draw donut chart
+    drawDonutChart(ctx, size, data, colors);
 
     // Add hover functionality
     let tooltip = document.getElementById('inventory-tooltip');
@@ -840,6 +839,12 @@ function updateCharts(data) {
         color: item.color
     }));
     updateInventoryPieChart(inventoryItems, data.inventory_weight.total);
+
+    // Weekly transactions bar chart
+    createWeeklyChart(data.weekly_transactions.labels, data.weekly_transactions.counts);
+
+    // Monthly profit chart
+    createProfitChart(data.monthly_revexp.labels, data.monthly_revexp.revenue, data.monthly_revexp.expense);
 }
 
 // Refresh data every 5 minutes
