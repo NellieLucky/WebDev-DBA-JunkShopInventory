@@ -309,9 +309,7 @@ if (isset($_POST['action'])) {
                 <span class="search-icon">🔍</span>
                 <input type="text" id="searchInput" placeholder="Search Transaction....." class="search-input">
             </div>
-            <button class="filter-btn" id="filterBtn">
-                <span class="filter-icon">🔽</span>
-            </button>
+            <button class="filter-btn" id="filterBtn">Filter</button>
             <button class="add-btn" id="addBtn">Add</button>
         </section>
 
@@ -413,6 +411,79 @@ if (isset($_POST['action'])) {
                 <div class="modal-actions">
                     <button class="btn-print" onclick="printTransaction()">Print Invoice</button>
                     <button class="btn-close" onclick="closeDetailModal()">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div id="filterModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Filter Transactions</h2>
+                <button class="close-btn" id="filterModalCloseBtn" title="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="detail-grid" style="grid-template-columns: repeat(2, 1fr);">
+                    <div class="detail-item">
+                        <span class="detail-label">Type</span>
+                        <select id="filterType" style="padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                            <option value="all">All</option>
+                            <option value="received">Received</option>
+                            <option value="dispatched">Dispatched</option>
+                        </select>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Quick Presets</span>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button class="add-btn" id="presetTodayBtn" type="button">Today</button>
+                            <button class="add-btn" id="presetWeekBtn" type="button">This Week</button>
+                            <button class="add-btn" id="presetMonthBtn" type="button">This Month</button>
+                        </div>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Custom Month</span>
+                        <select id="filterMonth" style="padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                            <option value="">Select Month</option>
+                            <option value="1">January</option>
+                            <option value="2">February</option>
+                            <option value="3">March</option>
+                            <option value="4">April</option>
+                            <option value="5">May</option>
+                            <option value="6">June</option>
+                            <option value="7">July</option>
+                            <option value="8">August</option>
+                            <option value="9">September</option>
+                            <option value="10">October</option>
+                            <option value="11">November</option>
+                            <option value="12">December</option>
+                        </select>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Custom Year</span>
+                        <select id="filterYear" style="padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;">
+                            <option value="">Select Year</option>
+                            <?php
+                                $currentYear = (int)date('Y');
+                                for ($y = $currentYear - 10; $y <= $currentYear + 2; $y++) {
+                                    echo '<option value="' . $y . '">' . $y . '</option>';
+                                }
+                            ?>
+                        </select>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Start Date</span>
+                        <input type="date" id="filterStartDate" style="padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;" />
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">End Date</span>
+                        <input type="date" id="filterEndDate" style="padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px;" />
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn-print" id="filterModalApplyBtn" type="button">Apply Filters</button>
+                    <button class="btn-close" id="filterModalClearBtn" type="button">Clear</button>
                 </div>
             </div>
         </div>

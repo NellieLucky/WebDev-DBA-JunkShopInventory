@@ -45,7 +45,26 @@ function setupEventListeners() {
     document.getElementById('searchInput').addEventListener('input', handleSearch);
 
     // Filter button
-    document.getElementById('filterBtn').addEventListener('click', handleFilter);
+    document.getElementById('filterBtn').addEventListener('click', openFilterModal);
+
+    // Filter modal controls
+    const filterModalCloseBtn = document.getElementById('filterModalCloseBtn');
+    const filterModalApplyBtn = document.getElementById('filterModalApplyBtn');
+    const filterModalClearBtn = document.getElementById('filterModalClearBtn');
+    const presetTodayBtn = document.getElementById('presetTodayBtn');
+    const presetWeekBtn = document.getElementById('presetWeekBtn');
+    const presetMonthBtn = document.getElementById('presetMonthBtn');
+    const filterMonth = document.getElementById('filterMonth');
+    const filterYear = document.getElementById('filterYear');
+
+    if (filterModalCloseBtn) filterModalCloseBtn.addEventListener('click', closeFilterModal);
+    if (filterModalApplyBtn) filterModalApplyBtn.addEventListener('click', applyFiltersFromModal);
+    if (filterModalClearBtn) filterModalClearBtn.addEventListener('click', clearFiltersAndReload);
+    if (presetTodayBtn) presetTodayBtn.addEventListener('click', () => setPreset('today'));
+    if (presetWeekBtn) presetWeekBtn.addEventListener('click', () => setPreset('week'));
+    if (presetMonthBtn) presetMonthBtn.addEventListener('click', () => setPreset('month'));
+    if (filterMonth) filterMonth.addEventListener('change', updateMonthYearRange);
+    if (filterYear) filterYear.addEventListener('change', updateMonthYearRange);
 
     // Add button
     document.getElementById('addBtn').addEventListener('click', handleAdd);
@@ -213,54 +232,122 @@ async function handleSearch(e) {
 }
 
 // Handle filter
-function handleFilter() {
-    const filterOptions = [
-        'All Transactions',
-        'Received Only',
-        'Dispatched Only',
-        'Today',
-        'This Week',
-        'This Month'
-    ];
-    
-    const choice = prompt(`Filter Options:\n\n${filterOptions.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}\n\nEnter your choice (1-${filterOptions.length}):`);
-    
-    if (!choice) return;
-    
-    const index = parseInt(choice) - 1;
-    
-    if (index >= 0 && index < filterOptions.length) {
-        switch(index) {
-            case 0: // All
-                renderTransactionRecords();
-                showNotification('Showing all transactions', 'info');
-                break;
-            case 1: // Received Only
-                const received = transactionRecords.filter(r => r.type === 'Received');
-                renderTransactionRecords(received);
-                showNotification(`Showing ${received.length} received transactions`, 'info');
-                break;
-            case 2: // Dispatched Only
-                const dispatched = transactionRecords.filter(r => r.type === 'Dispatched');
-                renderTransactionRecords(dispatched);
-                showNotification(`Showing ${dispatched.length} dispatched transactions`, 'info');
-                break;
-            case 3: // Today
-                const today = new Date().toISOString().split('T')[0];
-                const todayRecords = transactionRecords.filter(r => r.date === today);
-                renderTransactionRecords(todayRecords);
-                showNotification(`Showing ${todayRecords.length} transactions from today`, 'info');
-                break;
-            case 4: // This Week
-                showNotification('Week filter - Feature coming soon!', 'info');
-                break;
-            case 5: // This Month
-                showNotification('Month filter - Feature coming soon!', 'info');
-                break;
-        }
-    } else {
-        showNotification('Invalid choice', 'error');
+// Open/Close Filter Modal
+function openFilterModal() {
+    const modal = document.getElementById('filterModal');
+    if (modal) modal.classList.add('active');
+}
+
+function closeFilterModal() {
+    const modal = document.getElementById('filterModal');
+    if (modal) modal.classList.remove('active');
+}
+
+// Presets for date range
+function setPreset(preset) {
+    const startInput = document.getElementById('filterStartDate');
+    const endInput = document.getElementById('filterEndDate');
+
+    const today = new Date();
+    let startDate = new Date(today);
+    let endDate = new Date(today);
+
+    if (preset === 'today') {
+        // start and end are today
+    } else if (preset === 'week') {
+        // Set to Monday of this week
+        const day = today.getDay(); // 0=Sun, 1=Mon, ...
+        const diffToMonday = (day === 0 ? -6 : 1 - day);
+        startDate.setDate(today.getDate() + diffToMonday);
+        // Set to Sunday of this week
+        const diffToSunday = (day === 0 ? 0 : 7 - day);
+        endDate.setDate(today.getDate() + diffToSunday);
+    } else if (preset === 'month') {
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     }
+
+    startInput.value = startDate.toISOString().split('T')[0];
+    endInput.value = endDate.toISOString().split('T')[0];
+}
+
+function clearFiltersAndReload() {
+    const typeSelect = document.getElementById('filterType');
+    const startInput = document.getElementById('filterStartDate');
+    const endInput = document.getElementById('filterEndDate');
+    const monthSelect = document.getElementById('filterMonth');
+    const yearSelect = document.getElementById('filterYear');
+
+    if (typeSelect) typeSelect.value = 'all';
+    if (startInput) startInput.value = '';
+    if (endInput) endInput.value = '';
+    if (monthSelect) monthSelect.value = '';
+    if (yearSelect) yearSelect.value = '';
+
+    // Reset to all records
+    renderTransactionRecords(transactionRecords);
+    showNotification('Filters cleared', 'info');
+}
+
+function applyFiltersFromModal() {
+    const typeSelect = document.getElementById('filterType');
+    const startInput = document.getElementById('filterStartDate');
+    const endInput = document.getElementById('filterEndDate');
+
+    const type = typeSelect ? typeSelect.value : 'all';
+    const startDateStr = startInput ? startInput.value : '';
+    const endDateStr = endInput ? endInput.value : '';
+
+    let filtered = [...transactionRecords];
+
+    // Filter by type
+    if (type === 'received') {
+        filtered = filtered.filter(r => r.type === 'Received');
+    } else if (type === 'dispatched') {
+        filtered = filtered.filter(r => r.type === 'Dispatched');
+    }
+
+    // Filter by date range
+    if (startDateStr || endDateStr) {
+        const startDate = startDateStr ? new Date(startDateStr) : null;
+        const endDate = endDateStr ? new Date(endDateStr) : null;
+
+        filtered = filtered.filter(r => {
+            if (!r.date || r.date === 'N/A') return false;
+            const d = new Date(r.date);
+            if (startDate && d < startDate) return false;
+            if (endDate) {
+                // include end date boundary (set to end of day)
+                const endInclusive = new Date(endDate);
+                endInclusive.setHours(23, 59, 59, 999);
+                if (d > endInclusive) return false;
+            }
+            return true;
+        });
+    }
+
+    renderTransactionRecords(filtered);
+    closeFilterModal();
+    showNotification(`Applied filters. Showing ${filtered.length} record(s).`, 'success');
+}
+
+// Update date range when month/year changes
+function updateMonthYearRange() {
+    const monthSelect = document.getElementById('filterMonth');
+    const yearSelect = document.getElementById('filterYear');
+    const startInput = document.getElementById('filterStartDate');
+    const endInput = document.getElementById('filterEndDate');
+
+    const today = new Date();
+    const selectedMonth = monthSelect && monthSelect.value ? parseInt(monthSelect.value, 10) : (today.getMonth() + 1);
+    const selectedYear = yearSelect && yearSelect.value ? parseInt(yearSelect.value, 10) : today.getFullYear();
+
+    // JS Date months are 0-indexed
+    const startDate = new Date(selectedYear, selectedMonth - 1, 1);
+    const endDate = new Date(selectedYear, selectedMonth, 0); // last day of selected month
+
+    if (startInput) startInput.value = startDate.toISOString().split('T')[0];
+    if (endInput) endInput.value = endDate.toISOString().split('T')[0];
 }
 
 // Handle add button
