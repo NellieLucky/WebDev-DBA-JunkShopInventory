@@ -111,7 +111,7 @@ function renderTransactionRecords(records = transactionRecords) {
                 <td>${itemText}</td>
                 <td>${record.totalPiece || 0}</td>
                 <td>${record.totalKilo || 0}</td>
-                <td>₱${parseFloat(record.totalAmount || 0).toFixed(2)}</td>
+                <td>₱${parseFloat(record.totalAmount || 0).toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} </td>
                 <td>
                     <button class="action-btn view-btn" onclick="viewTransaction(${record.id})" title="View Details">
                         👁️ View

@@ -301,8 +301,8 @@ function renderTransactionTable() {
                 <td>${displayQtyType}</td>
                 <td>${item.currentQty}${unit}</td>
                 <td>${item.exchangeQty}${unit}</td>
-                <td>₱${item.price.toFixed(2)}</td>
-                <td>₱${item.amount.toFixed(2)}</td>
+                <td>₱${item.price.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
+                <td>₱${item.amount.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
                 <td>
                     <div class="action-buttons">
                         <button class="action-btn edit-btn" onclick="editTransaction(${item.id})" title="Edit">✏️</button>
@@ -336,7 +336,7 @@ function updateSummary() {
 
     // Calculate total value
     const totalValue = transactionItems.reduce((sum, item) => sum + item.amount, 0);
-    document.getElementById('totalValue').textContent = `₱${totalValue.toFixed(2)}`;
+    document.getElementById('totalValue').textContent = `₱${totalValue.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 }
 
 // Edit transaction
@@ -400,11 +400,12 @@ function showSaveConfirmation(operationType, customerName) {
     let itemsList = '';
     transactionItems.forEach((item, index) => {
         const unit = (item.qtyType === 'by kilo' || item.qtyType === 'Kilo') ? 'kg' : 'pieces';
-        itemsList += `${index + 1}. ${item.name} - ${item.exchangeQty} ${unit} - ₱${item.amount.toFixed(2)}\n`;
+        itemsList += `${index + 1}. ${item.name} - ${item.exchangeQty} ${unit} - ₱${item.amount.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}\n`;
     });
 
     const totalValue = transactionItems.reduce((sum, item) => sum + item.amount, 0);
-    const message = `Are you sure you want to save this transaction? You can't modify these after saving.\n\nList of items:\n${itemsList}\nTotal Value: ₱${totalValue.toFixed(2)}`;
+    const message = `Are you sure you want to save this transaction? You can't modify these after saving.\n\nList of items:\n${itemsList}
+            \nTotal Value: ₱${totalValue.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
     if (confirm(message)) {
         // User confirmed, proceed with saving
@@ -580,16 +581,16 @@ function generateInvoice(operationType, customerName, transactionId) {
         return `
             <tr>
                 <td>${item.name}</td>
-                <td>₱${item.price.toFixed(2)}</td>
+                <td>₱${item.price.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
                 <td>${item.exchangeQty}${unit}</td>
-                <td>₱${item.amount.toFixed(2)}</td>
+                <td>₱${item.amount.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
             </tr>
         `;
     }).join('');
     
     // Calculate total
     const totalAmount = transactionItems.reduce((sum, item) => sum + item.amount, 0);
-    document.getElementById('invoiceTotal').textContent = `₱${totalAmount.toFixed(2)}`;
+    document.getElementById('invoiceTotal').textContent = `₱${totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
     
     // Show invoice modal
     document.getElementById('invoiceModal').classList.add('active');
@@ -688,8 +689,8 @@ function printTransaction() {
             <td>${item.qtyType}</td>
             <td>${item.currentQty}</td>
             <td>${item.exchangeQty}</td>
-            <td>₱${item.price.toFixed(2)}</td>
-            <td>₱${item.amount.toFixed(2)}</td>
+            <td>₱${item.price.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
+            <td>₱${item.amount.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
         </tr>`;
         total += item.amount;
     });
@@ -717,7 +718,7 @@ function printTransaction() {
             </div>
             ${tableHTML}
             <div class="total">
-                <p>Total Amount: ₱${total.toFixed(2)}</p>
+                <p>Total Amount: ₱${total.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</p>
             </div>
         </body>
         </html>
