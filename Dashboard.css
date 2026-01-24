@@ -548,3 +548,24 @@ body {
         flex-direction: column;
     }
 }
+
+.loading {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-style: italic;
+}
+
+.empty {
+    padding: 20px;
+    text-align: center;
+    color: #999;
+}
+
+.error {
+    padding: 20px;
+    text-align: center;
+    color: #f56565;
+    background: #fed7d7;
+    border-radius: 4px;
+}

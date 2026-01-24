@@ -568,3 +568,51 @@ body {
         border-radius: 8px;
     }
 }
+/* Badge Styles */
+.badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-received {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.badge-dispatched {
+    background: #fed7d7;
+    color: #742a2a;
+}
+
+.badge-exchange {
+    background: #e9d8fd;
+    color: #44337a;
+}
+
+.badge-info {
+    background: #bee3f8;
+    color: #2a4365;
+}
+
+/* Action Button */
+.action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.action-btn:hover {
+    background: #e2e8f0;
+}
+
+.view-btn {
+    color: #4299e1;
+}

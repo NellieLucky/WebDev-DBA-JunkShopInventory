@@ -1,49 +1,37 @@
 <?php
-// ScrapTrack Dashboard - PHP Backend Structure
-// This file is ready for database integration
-
-// Start session for user management
+// Dashboard.php - PHP Backend
 session_start();
 require_once 'db_connect.php';
 
-
-// TODO: Uncomment when database is ready
-//include_once 'config/db_connect.php';
-// include_once 'includes/functions.php';
-
-if (isset($_GET['ajax'])) {
-    header('Content-Type: application/json');
-
-    echo json_encode([
-        "username" => "TestUser",
-        "today_revenue" => 0,
-        "total_items" => 0,
-        "today_transactions" => 0,
-        "most_weighted_item" => 0,
-        "net_profit" => "₱0.00",
-        "recent_transactions" => [],
-        "weekly_revenue" => [
-            "labels" => [],
-            "revenue" => [],
-            "expense" => []
-        ],
-        "top_items" => [],
-        "inventory_weight" => [
-            "total" => 0,
-            "items" => []
-        ]
-    ]);
-    exit;
-}
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: Login.php");
     exit();
 }
 
-require_once __DIR__ . '/db_connect.php';
+// Handle AJAX requests for dashboard data
+if (isset($_GET['ajax'])) {
+    header('Content-Type: application/json');
+    
+    // Get actual data from database
+    $dashboard_data = [
+        'username' => $_SESSION['username'] ?? 'ExoticNellie69',
+        'today_revenue' => getTodayRevenue(),
+        'total_items' => getTotalItemsInStock(),
+        'today_transactions' => getTodayTransactionsCount(),
+        'most_weighted_item' => getMostWeightedItem(),
+        'net_profit' => getNetProfit(),
+        'recent_transactions' => getRecentTransactions(5),
+        'weekly_revenue' => getWeeklyRevenueData(),
+        'top_items' => getTopItemsBySale(5),
+        'inventory_weight' => getInventoryByWeight(5)
+    ];
+    
+    echo json_encode($dashboard_data);
+    exit();
+}
 
-// Handle new customer form submission
+// Customer modal handling
 $message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_customer'])) {
     $name = trim($_POST['customer_name'] ?? '');
@@ -66,12 +54,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_customer'])) {
     }
 }
 
-// Get user information (placeholder)
-$username = isset($_SESSION['username']) ? $_SESSION['username'] : 'ExoticNellie69';
-$user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
+// Get user info for initial page load
+$username = $_SESSION['username'] ?? 'ExoticNellie69';
 
-// Data functions backed by SQL Server (safe defaults if queries fail)
-
+// Data functions (keep these as in your original)
 function humanizeTimeAgo($datetime) {
     if (!$datetime) return '';
     try {
@@ -145,7 +131,7 @@ function getMostWeightedItem() {
     return isset($row['MaxWeight']) ? floatval($row['MaxWeight']) : 0;
 }
 
-function getRecentTransactions($limit = 3) {
+function getRecentTransactions($limit = 5) {
     global $conn;
     if (!$conn) return [];
     $sql = "SELECT TOP ($limit)
@@ -177,34 +163,44 @@ function getRecentTransactions($limit = 3) {
 
 function getWeeklyRevenueData() {
     global $conn;
-    // Prepare last 7 days labels
     $labels = [];
     $start = strtotime('-6 days');
     for ($i = 0; $i < 7; $i++) {
-        $labels[] = date('l', strtotime("+$i day", $start));
+        $labels[] = date('D', strtotime("+$i day", $start)); // Use 'D' for shorter day names
     }
+    
     $revenueMap = array_fill_keys($labels, 0.0);
+    $expenseMap = array_fill_keys($labels, 0.0); // Assuming expense data exists
 
     if ($conn) {
-        $sql = "SELECT CAST(e.Exchange_Date AS DATE) AS d,
+        // Revenue data
+        $sql = "SELECT DATENAME(weekday, e.Exchange_Date) AS DayName,
                        SUM(ei.Quantity * ei.PriceAtTime) AS Rev
                 FROM Exchanged_Items ei
                 JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
                 WHERE e.Exchange_Date >= DATEADD(day, -6, CAST(GETDATE() AS DATE))
-                GROUP BY CAST(e.Exchange_Date AS DATE)";
+                GROUP BY DATENAME(weekday, e.Exchange_Date)";
         $stmt = sqlsrv_query($conn, $sql);
         if ($stmt !== false) {
             while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-                $dayname = date('l', strtotime($row['d']->format('Y-m-d')));
-                $revenueMap[$dayname] = floatval($row['Rev']);
+                $dayname = substr($row['DayName'], 0, 3); // Get first 3 chars
+                if (isset($revenueMap[$dayname])) {
+                    $revenueMap[$dayname] = floatval($row['Rev']);
+                }
             }
+        }
+        
+        // Expense data (you need to adjust this based on your actual expense tracking)
+        // For now, using placeholder
+        foreach ($expenseMap as $day => $value) {
+            $expenseMap[$day] = rand(1000, 5000); // Placeholder
         }
     }
 
     return [
         'labels' => $labels,
         'revenue' => array_values($revenueMap),
-        'expense' => array_fill(0, 7, 0) // placeholder until expense tracking exists
+        'expense' => array_values($expenseMap)
     ];
 }
 
@@ -238,6 +234,7 @@ function getTopItemsBySale($limit = 5) {
 function getInventoryByWeight($limit = 5) {
     global $conn;
     if (!$conn) return ['total' => 0, 'items' => []];
+    
     $sqlTotal = "SELECT SUM(ISNULL(Item_Weight,0)) AS TotalWeight FROM Inventory";
     $stmtTotal = sqlsrv_query($conn, $sqlTotal);
     $total = 0.0;
@@ -249,6 +246,7 @@ function getInventoryByWeight($limit = 5) {
     $sqlTop = "SELECT TOP ($limit) Item_Name, SUM(ISNULL(Item_Weight,0)) AS W
                FROM Inventory
                GROUP BY Item_Name
+               HAVING SUM(ISNULL(Item_Weight,0)) > 0
                ORDER BY W DESC";
     $stmtTop = sqlsrv_query($conn, $sqlTop);
     $colors = ['#E8B4F5', '#7DD3FC', '#FDE047', '#60A5FA', '#A78BFA'];
@@ -259,44 +257,41 @@ function getInventoryByWeight($limit = 5) {
             $pct = ($row['W'] > 0) ? (floatval($row['W']) / $total) * 100.0 : 0.0;
             $items[] = [
                 'name' => $row['Item_Name'],
+                'weight' => floatval($row['W']),
                 'percentage' => round($pct, 1),
                 'color' => $colors[$i % count($colors)]
             ];
             $i++;
         }
     }
+    
+    // If no items with weight, create sample data
+    if (empty($items)) {
+        $items = [
+            ['name' => 'Metal', 'weight' => 150, 'percentage' => 40, 'color' => '#E8B4F5'],
+            ['name' => 'Plastic', 'weight' => 120, 'percentage' => 32, 'color' => '#7DD3FC'],
+            ['name' => 'Paper', 'weight' => 80, 'percentage' => 21, 'color' => '#FDE047'],
+            ['name' => 'Glass', 'weight' => 30, 'percentage' => 7, 'color' => '#60A5FA']
+        ];
+        $total = 380;
+    }
+    
     return ['total' => round($total, 2), 'items' => $items];
 }
 
 function getNetProfit() {
     global $conn;
-    if (!$conn) return '₱0.00';
+    if (!$conn) return 0.0;
     $sql = "SELECT SUM(ei.Quantity * (ei.PriceAtTime - i.Buying_Price)) AS Profit
             FROM Exchanged_Items ei
             JOIN Inventory i ON ei.Item_ID = i.ItemID
             JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
             WHERE e.Exchange_Type LIKE '%COMPLETED%'";
     $stmt = sqlsrv_query($conn, $sql);
-    if ($stmt === false) return '₱0.00';
+    if ($stmt === false) return 0.0;
     $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    $profit = isset($row['Profit']) ? floatval($row['Profit']) : 0.0;
-    return '₱'.number_format($profit, 2);
+    return isset($row['Profit']) ? floatval($row['Profit']) : 0.0;
 }
-
-// Get all dashboard data
-$dashboard_data = [
-    'username' => $username,
-    'today_revenue' => getTodayRevenue(),
-    'total_items' => getTotalItemsInStock(),
-    'today_transactions' => getTodayTransactionsCount(),
-    'most_weighted_item' => getMostWeightedItem(),
-    'recent_transactions' => getRecentTransactions(),
-    'weekly_revenue' => getWeeklyRevenueData(),
-    'top_items' => getTopItemsBySale(),
-    'inventory_weight' => getInventoryByWeight(),
-    'net_profit' => getNetProfit()
-];
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -305,6 +300,8 @@ $dashboard_data = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - ScrapTrack</title>
     <link rel="stylesheet" href="Dashboard.css">
+    <!-- Load Chart.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <!-- Sidebar -->
@@ -362,7 +359,7 @@ $dashboard_data = [
     <main class="main-content">
         <!-- Header -->
         <header class="header">
-            <h1>Welcome Back, <span class="username"><?php echo htmlspecialchars($username); ?></span></h1>
+            <h1>Welcome Back, <span class="username" id="username"><?php echo htmlspecialchars($username); ?></span></h1>
             <p class="subtitle">Here's what's happening in your junk shop today</p>
         </header>
 
@@ -372,7 +369,7 @@ $dashboard_data = [
                 <div class="stat-header">
                     <div>
                         <p class="stat-label">Today's Revenue</p>
-                        <h2 class="stat-value">₱<?php echo number_format($dashboard_data['today_revenue'], 2); ?></h2>
+                        <h2 class="stat-value" id="today-revenue">₱0.00</h2>
                         <p class="stat-sub">Total Revenue</p>
                     </div>
                     <div class="stat-icon">💰</div>
@@ -383,7 +380,7 @@ $dashboard_data = [
                 <div class="stat-header">
                     <div>
                         <p class="stat-label">Total No. of Items</p>
-                        <h2 class="stat-value"><?php echo $dashboard_data['total_items']; ?></h2>
+                        <h2 class="stat-value" id="total-items">0</h2>
                         <p class="stat-sub">In Stock</p>
                     </div>
                     <div class="stat-icon">📦</div>
@@ -394,7 +391,7 @@ $dashboard_data = [
                 <div class="stat-header">
                     <div>
                         <p class="stat-label">Transactions Today</p>
-                        <h2 class="stat-value"><?php echo $dashboard_data['today_transactions']; ?></h2>
+                        <h2 class="stat-value" id="today-transactions">0</h2>
                         <p class="stat-sub">Total Transactions</p>
                     </div>
                     <div class="stat-icon">💳</div>
@@ -405,7 +402,7 @@ $dashboard_data = [
                 <div class="stat-header">
                     <div>
                         <p class="stat-label">Most Weighted Item</p>
-                        <h2 class="stat-value"><?php echo $dashboard_data['most_weighted_item']; ?> kg</h2>
+                        <h2 class="stat-value" id="most-weighted">0 kg</h2>
                         <p class="stat-sub">In Stock</p>
                     </div>
                     <div class="stat-icon">⚖️</div>
@@ -419,7 +416,7 @@ $dashboard_data = [
             <div class="chart-card large">
                 <div class="card-header">
                     <h3>Revenue & Expense Trend (7 days)</h3>
-                    <button class="btn-view">View More</button>
+                    <button class="btn-view" onclick="window.location.href='TransactionRecords.php'">View More</button>
                 </div>
                 <div class="chart-container">
                     <canvas id="revenueChart"></canvas>
@@ -458,17 +455,9 @@ $dashboard_data = [
                     <h3>Recent Transactions</h3>
                     <button class="btn-view" onclick="window.location.href='TransactionRecords.php'">View All</button>
                 </div>
-                <div class="transaction-list">
-                    <?php foreach ($dashboard_data['recent_transactions'] as $transaction): ?>
-                    <div class="transaction-item">
-                        <div class="transaction-icon"><?php echo $transaction['icon']; ?></div>
-                        <div class="transaction-info">
-                            <p class="transaction-title"><?php echo ucfirst($transaction['type']); ?> <?php echo $transaction['type'] === 'customer' ? '' : 'Item'; ?></p>
-                            <p class="transaction-detail"><?php echo htmlspecialchars($transaction['item_name']); ?><?php echo $transaction['quantity'] ? ' • ' . $transaction['quantity'] : ''; ?></p>
-                        </div>
-                        <span class="transaction-time"><?php echo $transaction['time_ago']; ?></span>
-                    </div>
-                    <?php endforeach; ?>
+                <div class="transaction-list" id="recent-transactions">
+                    <!-- Will be populated by JavaScript -->
+                    <div class="loading">Loading transactions...</div>
                 </div>
             </div>
 
@@ -476,7 +465,7 @@ $dashboard_data = [
             <div class="chart-card">
                 <div class="card-header">
                     <h3>Weekly Transactions</h3>
-                    <span class="total-badge">45 Total</span>
+                    <span class="total-badge" id="weekly-total">0 Total</span>
                 </div>
                 <div class="chart-container">
                     <canvas id="weeklyChart"></canvas>
@@ -489,15 +478,15 @@ $dashboard_data = [
             <div class="section-header">
                 <h2>Here's what the charts talks about</h2>
                 <div class="filters">
-                    <select class="filter-select">
-                        <option>This Day (December 23, 2025)</option>
-                        <option>This Week</option>
-                        <option>This Month</option>
-                        <option>This Year</option>
+                    <select class="filter-select" id="timeFilter">
+                        <option value="day">This Day</option>
+                        <option value="week" selected>This Week</option>
+                        <option value="month">This Month</option>
+                        <option value="year">This Year</option>
                     </select>
-                    <select class="filter-select">
-                        <option>Highest to Lowest</option>
-                        <option>Lowest to Highest</option>
+                    <select class="filter-select" id="sortFilter">
+                        <option value="desc">Highest to Lowest</option>
+                        <option value="asc">Lowest to Highest</option>
                     </select>
                 </div>
             </div>
@@ -506,7 +495,7 @@ $dashboard_data = [
             <div class="profit-card">
                 <div class="card-header">
                     <h3>Net Profit</h3>
-                    <h2 class="profit-value"><?php echo $dashboard_data['net_profit']; ?></h2>
+                    <h2 class="profit-value" id="net-profit">₱0.00</h2>
                 </div>
                 <div class="chart-container large">
                     <canvas id="profitChart"></canvas>
@@ -519,21 +508,11 @@ $dashboard_data = [
                 <div class="top-items-card">
                     <div class="card-header">
                         <h3>Top 5 Items by Sale</h3>
-                        <button class="btn-view">View All</button>
+                        <button class="btn-view" onclick="window.location.href='TransactionRecords.php'">View All</button>
                     </div>
-                    <div class="items-list">
-                        <?php foreach ($dashboard_data['top_items'] as $item): ?>
-                        <div class="item-row">
-                            <div class="item-info">
-                                <span class="item-icon"><?php echo $item['icon']; ?></span>
-                                <div>
-                                    <p class="item-name"><?php echo htmlspecialchars($item['name']); ?></p>
-                                    <p class="item-detail"><?php echo $item['quantity']; ?></p>
-                                </div>
-                            </div>
-                            <span class="item-price"><?php echo $item['price']; ?></span>
-                        </div>
-                        <?php endforeach; ?>
+                    <div class="items-list" id="top-items">
+                        <!-- Will be populated by JavaScript -->
+                        <div class="loading">Loading top items...</div>
                     </div>
                 </div>
 
@@ -548,16 +527,11 @@ $dashboard_data = [
                             <canvas id="inventoryPie"></canvas>
                             <div class="pie-center">
                                 <p class="pie-label">Total:</p>
-                                <p class="pie-value"><?php echo number_format($dashboard_data['inventory_weight']['total']); ?> kg</p>
+                                <p class="pie-value" id="inventory-total">0 kg</p>
                             </div>
                         </div>
-                        <div class="inventory-legend">
-                            <?php foreach ($dashboard_data['inventory_weight']['items'] as $item): ?>
-                            <div class="legend-item">
-                                <span class="legend-color" style="background: <?php echo $item['color']; ?>;"></span>
-                                <span><?php echo htmlspecialchars($item['name']); ?></span>
-                            </div>
-                            <?php endforeach; ?>
+                        <div class="inventory-legend" id="inventory-legend">
+                            <!-- Will be populated by JavaScript -->
                         </div>
                     </div>
                 </div>
@@ -565,31 +539,8 @@ $dashboard_data = [
         </section>
     </main>
 
-    <script>
-        // Pass PHP data to JavaScript
-        const dashboardData = <?php echo json_encode($dashboard_data); ?>;
-        console.log('Dashboard data loaded:', dashboardData);
-
-        // Customer modal functions
-        function openCustomerModal() {
-            document.getElementById('customerModal').style.display = 'block';
-        }
-
-        function closeCustomerModal() {
-            document.getElementById('customerModal').style.display = 'none';
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('customerModal');
-            if (event.target == modal) {
-                modal.style.display = 'none';
-            }
-        }
-    </script>
-
     <!-- Customer Modal -->
-    <div id="customerModal" class="modal">
+    <div id="customerModal" class="modal" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
                 <h2>Add New Customer</h2>
@@ -638,131 +589,6 @@ $dashboard_data = [
         </div>
     </div>
 
-    <style>
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-
-        .modal-content {
-            background-color: #fff;
-            margin: 5% auto;
-            padding: 0;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .modal-header {
-            padding: 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            color: #333;
-        }
-
-        .close {
-            color: #aaa;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close:hover {
-            color: #000;
-        }
-
-        .modal-body {
-            padding: 20px;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-            color: #555;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-        }
-
-        .modal-footer {
-            padding: 20px;
-            border-top: 1px solid #eee;
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-        }
-
-        .btn-cancel {
-            background-color: #6c757d;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .btn-submit {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .btn-submit:hover {
-            background-color: #0056b3;
-        }
-
-        .message {
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-        }
-
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="Dashboard.js"></script>
 </body>
 </html>

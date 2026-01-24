@@ -8,28 +8,11 @@ document.addEventListener('DOMContentLoaded', function() {
     updateDashboardData();
 });
 
-// Main dashboard state (comes from DB)
-const DashboardState = {
-    username: '',
-    todayRevenue: 0,
-    totalItems: 0,
-    todayTransactions: 0,
-    mostWeightedItem: 0,
-    netProfit: '₱0.00',
-
-    recentTransactions: [],
-    weekly_revenue: {
-        labels: [],
-        revenue: [],
-        expense: []
-    },
-    topItems: [],
-    inventory: {
-        total: 0,
-        items: []
-    }
-};
-
+// Global chart instances
+let revenueChart = null;
+let weeklyChart = null;
+let profitChart = null;
+let inventoryPieChart = null;
 
 // Setup event listeners for interactive elements
 function setupEventListeners() {
@@ -37,7 +20,7 @@ function setupEventListeners() {
     const actionButtons = document.querySelectorAll('.action-btn');
     actionButtons.forEach(btn => {
         btn.addEventListener('click', function() {
-            const action = this.textContent.trim();
+            const action = this.querySelector('span').textContent.trim();
             handleQuickAction(action);
         });
     });
@@ -58,777 +41,448 @@ function setupEventListeners() {
             handleFilterChange(this.value);
         });
     });
-
-    // Transaction items click
-    const transactionItems = document.querySelectorAll('.transaction-item');
-    transactionItems.forEach(item => {
-        item.addEventListener('click', function() {
-            handleTransactionClick(this);
-        });
-    });
-
-    // Top items click
-    const itemRows = document.querySelectorAll('.item-row');
-    itemRows.forEach(row => {
-        row.addEventListener('click', function() {
-            handleItemClick(this);
-        });
-    });
 }
 
 // Handle quick action button clicks
 function handleQuickAction(action) {
     console.log('Quick action clicked:', action);
-    
-    switch(action) {
-        case 'New Transaction':
-            alert('Opening New Transaction form...\n(This will redirect to Transaction page)');
-            // window.location.href = 'Transaction.html';
-            break;
-        case 'Add Item':
-            alert('Opening Add Item form...\n(This will open a modal or redirect to Inventory page)');
-            // window.location.href = 'Inventory.html?action=add';
-            break;
-        case 'New Customer':
-            alert('Opening New Customer form...\n(This will open a customer registration form)');
-            break;
-        case 'New Employee':
-            alert('Opening New Employee form...\n(This will redirect to Employee Management page)');
-            // window.location.href = 'EmployeeManagement.html?action=add';
-            break;
-    }
+    // Actions are handled by onclick attributes in HTML
 }
 
 // Handle view more/all button clicks
 function handleViewMore(section) {
     console.log('View more clicked for:', section);
-    
-    switch(section) {
-        case 'Revenue & Expense Trend (7 days)':
-            alert('Opening detailed revenue analysis...');
-            break;
-        case 'Recent Transactions':
-            alert('Redirecting to Transaction Records...');
-            // window.location.href = 'TransactionRecords.html';
-            break;
-        case 'Weekly Transactions':
-            alert('Opening weekly transaction details...');
-            break;
-        case 'Top 5 Items by Sale':
-            alert('Opening complete sales report...');
-            break;
-        case 'Inventory by Weight (Top 5)':
-            alert('Redirecting to Inventory...');
-            // window.location.href = 'Inventory.html';
-            break;
-    }
+    // Actions are handled by onclick attributes in HTML
 }
 
 // Handle filter changes
 function handleFilterChange(value) {
     console.log('Filter changed to:', value);
-    alert('Filtering data by: ' + value);
+    updateDashboardData();
 }
 
 // Handle transaction item clicks
-function handleTransactionClick(item) {
-    const title = item.querySelector('.transaction-title').textContent;
-    const detail = item.querySelector('.transaction-detail').textContent;
-    console.log('Transaction clicked:', title, detail);
-    
-    alert(`Transaction Details:\n${title}\n${detail}\n\n(This would show full transaction details)`);
+function handleTransactionClick(transactionId) {
+    console.log('Transaction clicked:', transactionId);
+    alert('Transaction details would show here for ID: ' + transactionId);
 }
 
 // Handle top item clicks
-function handleItemClick(row) { //Example ng query, baguhin nalang yung name
-    const itemName = row.querySelector('.item-name').textContent;
-    const itemDetail = row.querySelector('.item-detail').textContent;
-    const itemPrice = row.querySelector('.item-price').textContent;
-    
-    console.log('Item clicked:', itemName, itemDetail, itemPrice);
-    alert(`Item: ${itemName}\nQuantity: ${itemDetail}\nTotal Sales: ${itemPrice}\n\n(This would show detailed item analytics)`);
+function handleItemClick(itemId) {
+    console.log('Item clicked:', itemId);
+    alert('Item details would show here for ID: ' + itemId);
 }
 
-// Initialize charts with placeholder data
+// Initialize charts with Chart.js
 function initializeCharts() {
     console.log('Initializing charts...');
     
-    // Revenue & Expense Chart
+    // Initialize with empty data first
     createRevenueChart();
-    
-    // Weekly Transactions Chart
     createWeeklyChart();
-    
-    // Net Profit Chart
     createProfitChart();
-
-    // Top Items List
-    updateTopItems();
-    
-    // Inventory Pie Chart
     createInventoryPieChart();
     
     console.log('All charts initialized!');
 }
 
-function renderStats() {
-    document.getElementById('today-revenue').textContent =
-        `₱${DashboardState.todayRevenue.toFixed(2)}`;
-
-    document.getElementById('total-items').textContent =
-        DashboardState.totalItems;
-
-    document.getElementById('today-transactions').textContent =
-        DashboardState.todayTransactions;
-
-    document.getElementById('most-weighted').textContent =
-        `${DashboardState.mostWeightedItem} kg`;
-
-    document.getElementById('net-profit').textContent =
-        DashboardState.netProfit;
-
-    if (DashboardState.username) {
-        document.getElementById('username').textContent =
-            DashboardState.username;
-    }
-}
-
-
 // Create Revenue & Expense Trend Chart
-function createRevenueChart(labels, revenue, expense) {
-    const canvas = document.getElementById('revenueChart');
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width = canvas.parentElement.offsetWidth;
-    const height = canvas.height = 300;
-
-    drawAreaChart(ctx, width, height, labels, revenue, expense);
-}
-
-
-// Update Revenue Chart
-function updateRevenueChart(labels, revenue, expense) {
-    createRevenueChart(labels, revenue, expense);
-}
-
-// Create Weekly Transactions Chart
-function createWeeklyChart() {
-    const ctx = document.getElementById('weeklyChart').getContext('2d');
-
-    new Chart(ctx, {
+function createRevenueChart(labels = [], revenue = [], expense = []) {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (revenueChart) {
+        revenueChart.destroy();
+    }
+    
+    revenueChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: dashboardData.weekly_revenue.labels,
+            labels: labels.length > 0 ? labels : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
             datasets: [
                 {
                     label: 'Revenue',
-                    data: dashboardData.weekly_revenue.revenue,
-                    fill: false,
+                    data: revenue.length > 0 ? revenue : [0, 0, 0, 0, 0, 0, 0],
+                    borderColor: '#4299e1',
+                    backgroundColor: 'rgba(66, 153, 225, 0.1)',
+                    fill: true,
                     tension: 0.4
                 },
                 {
                     label: 'Expense',
-                    data: dashboardData.weekly_revenue.expense,
-                    fill: false,
+                    data: expense.length > 0 ? expense : [0, 0, 0, 0, 0, 0, 0],
+                    borderColor: '#f56565',
+                    backgroundColor: 'rgba(245, 101, 101, 0.1)',
+                    fill: true,
                     tension: 0.4
                 }
             ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₱' + value.toLocaleString();
+                        }
+                    }
+                }
+            }
         }
     });
+}
 
+// Create Weekly Transactions Chart
+function createWeeklyChart(labels = [], data = []) {
+    const ctx = document.getElementById('weeklyChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (weeklyChart) {
+        weeklyChart.destroy();
+    }
+    
+    weeklyChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels.length > 0 ? labels : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Transactions',
+                data: data.length > 0 ? data : [0, 0, 0, 0, 0, 0, 0],
+                backgroundColor: '#4FD1C5',
+                borderColor: '#38B2AC',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
 }
 
 // Create Net Profit Chart
-function createProfitChart() {
-    const canvas = document.getElementById('profitChart');
-    if (!canvas) {
-        console.error('Profit chart canvas not found');
-        return;
+function createProfitChart(labels = [], revenue = [], expense = []) {
+    const ctx = document.getElementById('profitChart').getContext('2d');
+    
+    // Destroy existing chart if it exists
+    if (profitChart) {
+        profitChart.destroy();
     }
     
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width = canvas.parentElement.offsetWidth;
-    const height = canvas.height = 400;
+    // Calculate profit data
+    const profitData = [];
+    if (revenue.length > 0 && expense.length > 0) {
+        for (let i = 0; i < revenue.length; i++) {
+            profitData.push(revenue[i] - expense[i]);
+        }
+    } else {
+        profitData.push(...[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    }
     
-    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const revenue = [20000, 55000, 60000, 65000, 30000, 75000, 100000, 80000, 100000, 70000, 85000, 95000];
-    const expense = [10000, 18000, 12000, 20000, 25000, 60000, 70000, 35000, 65000, 55000, 75000, 45000];
-    const totalRevenue = revenue.reduce((sum, value) => sum + value, 0);
-    const totalExpense = expense.reduce((sum, value) => sum + value, 0);
-    const totalProfit = totalRevenue - totalExpense;
-    const profitElement = document.querySelector('.profit-value'); // Kukuhain niya yung may name na class na ito from html
-    if (profitElement) {
-        profitElement.textContent = `₱${totalProfit.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-
-    let currentHoveredIndex = null;
-
-    function redrawChart(hoveredIndex = null) {
-        drawLineChart(ctx, width, height, labels, revenue, expense, hoveredIndex);
-    }
-
-    redrawChart();
-
-    // Add hover functionality
-    let tooltip = document.getElementById('profit-tooltip');
-    if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.id = 'profit-tooltip';
-        tooltip.style.position = 'absolute';
-        tooltip.style.background = 'rgba(0, 0, 0, 0.8)';
-        tooltip.style.color = 'white';
-        tooltip.style.padding = '10px 15px';
-        tooltip.style.borderRadius = '8px';
-        tooltip.style.fontSize = '14px';
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.display = 'none';
-        document.body.appendChild(tooltip);
-    }
-
-    canvas.addEventListener('mousemove', function(event) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-
-        const padding = {top: 40, right: 20, bottom: 50, left: 60};
-        const chartWidth = width - padding.left - padding.right;
-        const stepX = chartWidth / (labels.length - 1);
-
-        // Find the closest index
-        const index = Math.round((mouseX - padding.left) / stepX);
-        if (index >= 0 && index < labels.length) {
-            if (currentHoveredIndex !== index) {
-                currentHoveredIndex = index;
-                redrawChart(currentHoveredIndex);
+    profitChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels.length > 0 ? labels : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+            datasets: [{
+                label: 'Net Profit',
+                data: profitData,
+                borderColor: '#10B981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '₱' + value.toLocaleString();
+                        }
+                    }
+                }
             }
-            const rev = revenue[index];
-            const exp = expense[index];
-            tooltip.innerHTML = `<strong>${labels[index]}</strong>: <span style="color: #4299e1; font-weight: bold;">Revenue: </span>₱${rev.toLocaleString()}, <span style="color: #f56565; font-weight: bold;">Expense: </span>₱${exp.toLocaleString()}`;
-            tooltip.style.left = `${event.pageX + 10}px`;
-            tooltip.style.top = `${event.pageY - 10}px`;
-            tooltip.style.display = 'block'
-        } else {
-            if (currentHoveredIndex !== null) {
-                currentHoveredIndex = null;
-                redrawChart();
-            }
-            tooltip.style.display = 'none';
         }
-    });
-
-    canvas.addEventListener('mouseout', function() {
-        if (currentHoveredIndex !== null) {
-            currentHoveredIndex = null;
-            redrawChart();
-        }
-        tooltip.style.display = 'none';
-    });
-
-    canvas.addEventListener('click', function(event) {
-        // Optional: Keep tooltip visible on click, or handle differently
-        // For now, just log or do nothing extra
-        console.log('Profit chart clicked');
     });
 }
 
 // Create Inventory Pie Chart
-function createInventoryPieChart() {
-    const canvas = document.getElementById('inventoryPie');
-    if (!canvas) {
-        console.error('Inventory pie chart canvas not found');
-        return;
-    }
-    const items = dashboardData.inventory_weight.items;
-    const ctx = canvas.getContext('2d');
-    const size = 200;
-    canvas.width = size;
-    canvas.height = size;
+function createInventoryPieChart(items = [], total = 0) {
+    const ctx = document.getElementById('inventoryPie').getContext('2d');
     
-    const data = items.map(item => item.percentage);
-    const labels = items.map(item => item.name);
-    const colors = items.map(item => item.color);
-    const totalWeight = total;
-
-    const legendDiv = document.querySelector('.inventory-legend');
-    legendDiv.innerHTML = '';
-    legendItems.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'legend-item';
-        div.innerHTML = `<span class="legend-color" style="background: ${item.color};"></span><span>${item.label}</span>`;
-        legendDiv.appendChild(div);
-    });
-
-    // Add hover functionality
-    let tooltip = document.getElementById('inventory-tooltip');
-    if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.id = 'inventory-tooltip';
-        tooltip.style.position = 'absolute';
-        tooltip.style.background = 'rgba(0, 0, 0, 0.8)';
-        tooltip.style.color = 'white';
-        tooltip.style.padding = '10px 15px';
-        tooltip.style.borderRadius = '8px';
-        tooltip.style.fontSize = '14px';
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.display = 'none';
-        document.body.appendChild(tooltip);
+    // Destroy existing chart if it exists
+    if (inventoryPieChart) {
+        inventoryPieChart.destroy();
     }
-
-    canvas.addEventListener('mousemove', function(event) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-
-        const centerX = size / 2;
-        const centerY = size / 2;
-        const radius = size / 2 - 10;
-        const innerRadius = radius * 0.55;
-
-        const dx = mouseX - centerX;
-        const dy = mouseY - centerY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist >= innerRadius && dist <= radius) {
-            let angle = Math.atan2(dy, dx);
-            if (angle < 0) angle += 2 * Math.PI; // Normalize to 0-2PI
-            angle += Math.PI / 2; // Adjust for starting angle
-            if (angle > 2 * Math.PI) angle -= 2 * Math.PI;
-
-            const total = data.reduce((a, b) => a + b, 0);
-            let currentAngle = 0;
-            let index = -1;
-            for (let i = 0; i < data.length; i++) {
-                const sliceAngle = (data[i] / total) * 2 * Math.PI;
-                if (angle >= currentAngle && angle < currentAngle + sliceAngle) {
-                    index = i;
-                    break;
+    
+    // Prepare data
+    const labels = items.map(item => item.name);
+    const data = items.map(item => item.weight || item.percentage);
+    const colors = items.map(item => item.color);
+    
+    inventoryPieChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels.length > 0 ? labels : ['Metal', 'Plastic', 'Paper', 'Glass', 'Other'],
+            datasets: [{
+                data: data.length > 0 ? data : [150, 120, 80, 30, 20],
+                backgroundColor: colors.length > 0 ? colors : ['#E8B4F5', '#7DD3FC', '#FDE047', '#60A5FA', '#A78BFA'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} kg (${percentage}%)`;
+                        }
+                    }
                 }
-                currentAngle += sliceAngle;
             }
-
-            if (index !== -1) {
-                tooltip.innerHTML = `<strong><span style="font-weight: bold; color: ${colors[index]};">${labels[index]}:</span></strong> ${data[index]} kg`;
-                tooltip.style.left = `${event.pageX + 10}px`;
-                tooltip.style.top = `${event.pageY - 10}px`;
-                tooltip.style.display = 'block';
-            } else {
-                tooltip.style.display = 'none';
-            }
-        } else {
-            tooltip.style.display = 'none';
         }
     });
-
-    canvas.addEventListener('mouseout', function() {
-        tooltip.style.display = 'none';
-    });
 }
-
-// Update Inventory Pie Chart
-function updateInventoryPieChart(items, total) {
-    createInventoryPieChart(items, total);
-}
-
-// Draw area chart (for revenue/expense)
-function drawAreaChart(ctx, width, height, labels, data1, data2) {
-    const padding = {top: 20, right: 20, bottom: 40, left: 50};
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    
-    const maxValue = Math.max(...data1, ...data2);
-    const minValue = 0;
-    const range = maxValue - minValue;
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-    
-    // Draw background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-    
-    // Draw grid lines
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) {
-        const y = padding.top + (chartHeight / 4) * i;
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(width - padding.right, y);
-        ctx.stroke();
-    }
-    
-    // Draw Y-axis labels
-    ctx.fillStyle = '#718096';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'right';
-    for (let i = 0; i <= 4; i++) {
-        const value = maxValue - (range / 4 * i);
-        const y = padding.top + (chartHeight / 4) * i;
-        ctx.fillText(Math.round(value).toString(), padding.left - 10, y + 4);
-    }
-    
-    // Calculate points
-    const stepX = chartWidth / (labels.length - 1);
-    
-    // Draw Expense area (background)
-    ctx.fillStyle = 'rgba(245, 101, 101, 0.2)';
-    ctx.beginPath();
-    ctx.moveTo(padding.left, padding.top + chartHeight);
-    data2.forEach((value, i) => {
-        const x = padding.left + stepX * i;
-        const y = padding.top + chartHeight - ((value - minValue) / range * chartHeight);
-        ctx.lineTo(x, y);
-    });
-    ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Draw Revenue area
-    ctx.fillStyle = 'rgba(66, 153, 225, 0.2)';
-    ctx.beginPath();
-    ctx.moveTo(padding.left, padding.top + chartHeight);
-    data1.forEach((value, i) => {
-        const x = padding.left + stepX * i;
-        const y = padding.top + chartHeight - ((value - minValue) / range * chartHeight);
-        ctx.lineTo(x, y);
-    });
-    ctx.lineTo(padding.left + chartWidth, padding.top + chartHeight);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Draw Expense line
-    ctx.strokeStyle = '#f56565';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    data2.forEach((value, i) => {
-        const x = padding.left + stepX * i;
-        const y = padding.top + chartHeight - ((value - minValue) / range * chartHeight);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    
-    // Draw Revenue line
-    ctx.strokeStyle = '#4299e1';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    data1.forEach((value, i) => {
-        const x = padding.left + stepX * i;
-        const y = padding.top + chartHeight - ((value - minValue) / range * chartHeight);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    
-    // Draw X-axis labels
-    ctx.fillStyle = '#718096';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'center';
-    labels.forEach((label, i) => {
-        const x = padding.left + stepX * i;
-        ctx.fillText(label, x, height - padding.bottom + 20);
-    });
-    
-    // Draw legend
-    const legendY = padding.top - 5;
-    ctx.fillStyle = '#4299e1';
-    ctx.fillRect(width - 150, legendY, 15, 15);
-    ctx.fillStyle = '#2d3748';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('Revenue', width - 130, legendY + 12);
-    
-    ctx.fillStyle = '#f56565';
-    ctx.fillRect(width - 70, legendY, 15, 15);
-    ctx.fillStyle = '#2d3748';
-    ctx.fillText('Expense', width - 50, legendY + 12);
-}
-
-// Draw bar chart
-function drawBarChart(ctx, width, height, labels, data) {
-    const padding = {top: 20, right: 20, bottom: 40, left: 40};
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    
-    const maxValue = Math.max(...data);
-    const barWidth = chartWidth / labels.length * 0.6;
-    const barGap = chartWidth / labels.length * 0.4;
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-    
-    // Draw background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-    
-    // Draw bars
-    data.forEach((value, i) => {
-        const x = padding.left + (barWidth + barGap) * i + barGap / 2;
-        const barHeight = (value / maxValue) * chartHeight;
-        const y = padding.top + chartHeight - barHeight;
-        
-        // Gradient
-        const gradient = ctx.createLinearGradient(0, y, 0, y + barHeight);
-        gradient.addColorStop(0, '#4FD1C5');
-        gradient.addColorStop(1, '#38B2AC');
-        
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x, y, barWidth, barHeight);
-        
-        // Value on top
-        ctx.fillStyle = '#2d3748';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(value.toString(), x + barWidth / 2, y - 5);
-    });
-    
-    // Draw X-axis labels
-    ctx.fillStyle = '#718096';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'center';
-    labels.forEach((label, i) => {
-        const x = padding.left + (barWidth + barGap) * i + barGap / 2 + barWidth / 2;
-        ctx.fillText(label, x, height - padding.bottom + 20);
-    });
-}
-
-// Draw line chart
-function drawLineChart(ctx, width, height, labels, data1, data2) {
-    const padding = {top: 40, right: 20, bottom: 50, left: 60};
-    const chartWidth = width - padding.left - padding.right;
-    const chartHeight = height - padding.top - padding.bottom;
-    
-    const maxValue = Math.max(...data1, ...data2);
-    const minValue = 0;
-    const range = maxValue - minValue;
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-    
-    // Draw background
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, width, height);
-    
-    // Draw grid lines
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 5; i++) {
-        const y = padding.top + (chartHeight / 5) * i;
-        ctx.beginPath();
-        ctx.moveTo(padding.left, y);
-        ctx.lineTo(width - padding.right, y);
-        ctx.stroke();
-    }
-    
-    // Draw Y-axis labels
-    ctx.fillStyle = '#718096';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'right';
-    for (let i = 0; i <= 5; i++) {
-        const value = maxValue - (range / 5 * i);
-        const y = padding.top + (chartHeight / 5) * i;
-        ctx.fillText(Math.round(value).toString(), padding.left - 10, y + 4);
-    }
-    
-    // Calculate points
-    const stepX = chartWidth / (labels.length - 1);
-    
-    // Draw Revenue line
-    ctx.strokeStyle = '#4299e1';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    data1.forEach((value, i) => {
-        const x = padding.left + stepX * i;
-        const y = padding.top + chartHeight - ((value - minValue) / range * chartHeight);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    
-    // Draw Expense line
-    ctx.strokeStyle = '#f56565';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    data2.forEach((value, i) => {
-        const x = padding.left + stepX * i;
-        const y = padding.top + chartHeight - ((value - minValue) / range * chartHeight);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-    
-    // Draw X-axis labels
-    ctx.fillStyle = '#718096';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'center';
-    labels.forEach((label, i) => {
-        const x = padding.left + stepX * i;
-        ctx.fillText(label, x, height - padding.bottom + 25);
-    });
-    
-    // Draw legend
-    const legendY = 15;
-    ctx.fillStyle = '#4299e1';
-    ctx.fillRect(width - 150, legendY, 15, 15);
-    ctx.fillStyle = '#2d3748';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('Revenue', width - 130, legendY + 12);
-    
-    ctx.fillStyle = '#f56565';
-    ctx.fillRect(width - 70, legendY, 15, 15);
-    ctx.fillStyle = '#2d3748';
-    ctx.fillText('Expense', width - 50, legendY + 12);
-}
-
-// Draw donut chart
-function drawDonutChart(ctx, size, data, colors) {
-    const centerX = size / 2;
-    const centerY = size / 2;
-    const radius = size / 2 - 10;
-    const innerRadius = radius * 0.55;
-    
-    const total = data.reduce((a, b) => a + b, 0);
-    let currentAngle = -Math.PI / 2;
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, size, size);
-    
-    // Draw segments
-    data.forEach((value, i) => {
-        const sliceAngle = (value / total) * Math.PI * 2;
-        
-        ctx.fillStyle = colors[i];
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, currentAngle, currentAngle + sliceAngle);
-        ctx.arc(centerX, centerY, innerRadius, currentAngle + sliceAngle, currentAngle, true);
-        ctx.closePath();
-        ctx.fill();
-        
-        // Add subtle border
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        currentAngle += sliceAngle;
-    });
-    
-    // Draw center circle
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, innerRadius, 0, Math.PI * 2);
-    ctx.fill();
-}
-
-// Update top items list
-function renderTopItems() {
-    const list = document.querySelector('.items-list');
-    list.innerHTML = '';
-
-    DashboardState.topItems.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'item-row';
-        row.innerHTML = `
-            <div class="item-info">
-                <span class="item-icon">${item.icon}</span>
-                <div>
-                    <p class="item-name">${item.name}</p>
-                    <p class="item-detail">${item.quantity}</p>
-                </div>
-            </div>
-            <span class="item-price">${item.price}</span>
-        `;
-        list.appendChild(row);
-    });
-}
-
 
 // Update dashboard data (fetch from backend)
 function updateDashboardData() {
+    // Show loading state
+    document.getElementById('recent-transactions').innerHTML = '<div class="loading">Loading...</div>';
+    document.getElementById('top-items').innerHTML = '<div class="loading">Loading...</div>';
+    
     fetch('Dashboard.php?ajax=1')
-        .then(res => res.json())
-        .then(data => {
-
-            // === MAP DB DATA TO MAIN STATE ===
-            DashboardState.username = data.username;
-            DashboardState.todayRevenue = data.today_revenue;
-            DashboardState.totalItems = data.total_items;
-            DashboardState.todayTransactions = data.today_transactions;
-            DashboardState.mostWeightedItem = data.most_weighted_item;
-            DashboardState.netProfit = data.net_profit;
-
-            DashboardState.recentTransactions = data.recent_transactions;
-            DashboardState.weekly_revenue = data.weekly_revenue;
-            DashboardState.topItems = data.top_items;
-            DashboardState.inventory = data.inventory_weight;
-
-            // === UPDATE UI ===
-            renderStats();
-            renderRecentTransactions();
-            renderTopItems();
-            renderCharts();
+        .then(res => {
+            if (!res.ok) throw new Error('Network response was not ok');
+            return res.json();
         })
-        .catch(err => console.error('Dashboard fetch error:', err));
+        .then(data => {
+            console.log('Dashboard data loaded:', data);
+            
+            // Update stats
+            document.getElementById('today-revenue').textContent = 
+                `₱${parseFloat(data.today_revenue).toFixed(2)}`;
+            document.getElementById('total-items').textContent = 
+                data.total_items;
+            document.getElementById('today-transactions').textContent = 
+                data.today_transactions;
+            document.getElementById('most-weighted').textContent = 
+                `${data.most_weighted_item} kg`;
+            document.getElementById('net-profit').textContent = 
+                `₱${parseFloat(data.net_profit).toFixed(2)}`;
+            document.getElementById('inventory-total').textContent = 
+                `${data.inventory_weight.total} kg`;
+            
+            // Update username
+            if (data.username) {
+                document.getElementById('username').textContent = data.username;
+            }
+            
+            // Update recent transactions
+            renderRecentTransactions(data.recent_transactions);
+            
+            // Update top items
+            renderTopItems(data.top_items);
+            
+            // Update inventory legend
+            renderInventoryLegend(data.inventory_weight.items);
+            
+            // Update weekly total badge
+            if (data.weekly_revenue && data.weekly_revenue.revenue) {
+                const weeklyTotal = data.weekly_revenue.revenue.reduce((a, b) => a + b, 0);
+                document.getElementById('weekly-total').textContent = 
+                    `₱${weeklyTotal.toLocaleString()} Total`;
+            }
+            
+            // Update charts
+            updateCharts(data);
+        })
+        .catch(err => {
+            console.error('Dashboard fetch error:', err);
+            // Show error state
+            document.getElementById('recent-transactions').innerHTML = 
+                '<div class="error">Failed to load transactions</div>';
+            document.getElementById('top-items').innerHTML = 
+                '<div class="error">Failed to load top items</div>';
+        });
 }
-
 
 // Update charts with fetched data
 function updateCharts(data) {
     // Update revenue chart
-    updateRevenueChart(data.weekly_revenue.labels, data.weekly_revenue.revenue, data.weekly_revenue.expense);
+    if (data.weekly_revenue) {
+        createRevenueChart(
+            data.weekly_revenue.labels,
+            data.weekly_revenue.revenue,
+            data.weekly_revenue.expense
+        );
+    }
+    
+    // Update weekly chart (use revenue data for now)
+    if (data.weekly_revenue) {
+        createWeeklyChart(
+            data.weekly_revenue.labels,
+            data.weekly_revenue.revenue
+        );
+    }
+    
+    // Update profit chart
+    if (data.weekly_revenue) {
+        createProfitChart(
+            data.weekly_revenue.labels,
+            data.weekly_revenue.revenue,
+            data.weekly_revenue.expense
+        );
+    }
     
     // Update inventory pie chart
-    const inventoryItems = data.inventory_weight.items.map(item => ({
-        name: item.name,
-        weight: (item.percentage / 100) * data.inventory_weight.total,
-        color: item.color
-    }));
-    updateInventoryPieChart(inventoryItems, data.inventory_weight.total);
+    if (data.inventory_weight) {
+        createInventoryPieChart(
+            data.inventory_weight.items,
+            data.inventory_weight.total
+        );
+    }
 }
 
-function renderCharts() {
-    // Revenue
-    createRevenueChart(
-        DashboardState.weekly_revenue.labels,
-        DashboardState.weekly_revenue.revenue,
-        DashboardState.weekly_revenue.expense
-    );
-
-    // Inventory
-    const items = DashboardState.inventory.items.map(i => ({
-        name: i.name,
-        weight: (i.percentage / 100) * DashboardState.inventory.total,
-        color: i.color
-    }));
-
-    createInventoryPieChart(items, DashboardState.inventory.total);
-}
-
-function renderRecentTransactions() {
+// Render recent transactions
+function renderRecentTransactions(transactions) {
     const container = document.getElementById('recent-transactions');
     container.innerHTML = '';
-
-    DashboardState.recentTransactions.forEach(tx => {
+    
+    if (!transactions || transactions.length === 0) {
+        container.innerHTML = '<div class="empty">No recent transactions</div>';
+        return;
+    }
+    
+    transactions.forEach(tx => {
         const div = document.createElement('div');
         div.className = 'transaction-item';
         div.innerHTML = `
-            <div class="transaction-icon">${tx.icon}</div>
+            <div class="transaction-icon">${tx.icon || '💰'}</div>
             <div class="transaction-info">
-                <p class="transaction-title">${tx.item_name}</p>
-                <p class="transaction-detail">${tx.quantity}</p>
+                <p class="transaction-title">${tx.type || 'Transaction'} ${tx.item_name || ''}</p>
+                <p class="transaction-detail">${tx.quantity || ''}</p>
             </div>
-            <span class="transaction-time">${tx.time_ago}</span>
+            <span class="transaction-time">${tx.time_ago || 'Recently'}</span>
         `;
         container.appendChild(div);
     });
 }
 
+// Render top items
+function renderTopItems(items) {
+    const container = document.getElementById('top-items');
+    container.innerHTML = '';
+    
+    if (!items || items.length === 0) {
+        container.innerHTML = '<div class="empty">No top items data</div>';
+        return;
+    }
+    
+    items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'item-row';
+        div.innerHTML = `
+            <div class="item-info">
+                <span class="item-icon">${item.icon || '📦'}</span>
+                <div>
+                    <p class="item-name">${item.name || 'Item'}</p>
+                    <p class="item-detail">${item.quantity || '0 pcs'}</p>
+                </div>
+            </div>
+            <span class="item-price">${item.price || '₱0.00'}</span>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// Render inventory legend
+function renderInventoryLegend(items) {
+    const container = document.getElementById('inventory-legend');
+    container.innerHTML = '';
+    
+    if (!items || items.length === 0) {
+        container.innerHTML = '<div class="empty">No inventory data</div>';
+        return;
+    }
+    
+    items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'legend-item';
+        div.innerHTML = `
+            <span class="legend-color" style="background: ${item.color || '#ccc'};"></span>
+            <span>${item.name || 'Item'}</span>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// Modal functions
+function openCustomerModal() {
+    document.getElementById('customerModal').style.display = 'block';
+}
+
+function closeCustomerModal() {
+    document.getElementById('customerModal').style.display = 'none';
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('customerModal');
+    if (event.target === modal) {
+        closeCustomerModal();
+    }
+});
 
 // Refresh data every 5 minutes
 setInterval(updateDashboardData, 300000);
 
 // Handle window resize
 window.addEventListener('resize', function() {
-    initializeCharts();
+    // Reinitialize charts on resize
+    if (revenueChart) revenueChart.resize();
+    if (weeklyChart) weeklyChart.resize();
+    if (profitChart) profitChart.resize();
+    if (inventoryPieChart) inventoryPieChart.resize();
 });
 
 console.log('ScrapTrack Dashboard initialized successfully!');

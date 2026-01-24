@@ -11,6 +11,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load transaction records from backend
 async function loadTransactionRecords() {
+    const tbody = document.getElementById('recordsTableBody');
+    tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading transaction records...</td></tr>';
+    
+    showNotification('Loading transaction records...', 'info');
+    
     try {
         const formData = new FormData();
         formData.append('action', 'get_records');
@@ -25,24 +30,41 @@ async function loadTransactionRecords() {
         if (result.success) {
             transactionRecords = result.data;
             renderTransactionRecords();
+            
+            if (result.data.length === 0) {
+                showNotification('No transaction records found.', 'info');
+            } else {
+                showNotification(`Loaded ${result.data.length} transaction records`, 'success');
+            }
         } else {
             showNotification(result.error || 'Failed to load transaction records', 'error');
-            // Show error message in table
-            const tbody = document.getElementById('recordsTableBody');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #f56565;">Failed to load records. Please try again.</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="9" class="error">${result.error || 'Failed to load records'}</td></tr>`;
         }
     } catch (error) {
         console.error('Error loading transaction records:', error);
         showNotification('Network error. Please check your connection.', 'error');
-        const tbody = document.getElementById('recordsTableBody');
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #f56565;">Network error. Please try again.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="error">Network error. Please try again.</td></tr>';
     }
 }
 
 // Setup event listeners
 function setupEventListeners() {
-    // Search input
-    document.getElementById('searchInput').addEventListener('input', handleSearch);
+    // Search input with debouncing
+    const searchInput = document.getElementById('searchInput');
+    let searchTimeout;
+    searchInput.addEventListener('input', function(e) {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            handleSearch(e.target.value);
+        }, 300);
+    });
+    
+    // Enter key for search
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            handleSearch(this.value);
+        }
+    });
 
     // Filter button
     document.getElementById('filterBtn').addEventListener('click', handleFilter);
@@ -55,27 +77,44 @@ function setupEventListeners() {
 function renderTransactionRecords(records = transactionRecords) {
     const tbody = document.getElementById('recordsTableBody');
     
-    if (records.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #a0aec0;">No transaction records found</td></tr>';
+    if (!records || records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="empty">No transaction records found</td></tr>';
         return;
     }
     
     tbody.innerHTML = records.map(record => {
-        const badgeClass = record.type === 'Received' ? 'badge-received' : 'badge-dispatched';
+        // Determine badge class based on transaction type
+        let badgeClass = 'badge-info';
+        let displayType = record.type || 'Transaction';
+        
+        // Categorize transaction types
+        if (displayType.toLowerCase().includes('purchase') || 
+            displayType.toLowerCase().includes('buy') ||
+            displayType.toLowerCase().includes('received')) {
+            badgeClass = 'badge-received';
+        } else if (displayType.toLowerCase().includes('sell') || 
+                   displayType.toLowerCase().includes('sale') ||
+                   displayType.toLowerCase().includes('dispatched')) {
+            badgeClass = 'badge-dispatched';
+        } else if (displayType.toLowerCase().includes('exchange')) {
+            badgeClass = 'badge-exchange';
+        }
+        
         const itemText = record.noOfItems === 1 ? '1 item' : `${record.noOfItems} items`;
         
         return `
             <tr data-id="${record.id}">
-                <td>${record.id}</td>
+                <td>#${record.id}</td>
                 <td>${formatDate(record.date)}</td>
-                <td><span class="badge ${badgeClass}">${record.type}</span></td>
+                <td><span class="badge ${badgeClass}">${displayType}</span></td>
+                <td>${record.customer || 'Walk-in'}</td>
                 <td>${itemText}</td>
-                <td>${record.totalPiece} pcs</td>
-                <td>${record.totalKilo} kg</td>
-                <td>₱${record.totalAmount.toFixed(2)}</td>
+                <td>${record.totalPiece || 0}</td>
+                <td>${record.totalKilo || 0}</td>
+                <td>₱${parseFloat(record.totalAmount || 0).toFixed(2)}</td>
                 <td>
-                    <button class="action-btn view-btn" onclick="viewTransaction(${record.id})" title="View Receipt">
-                        🧾
+                    <button class="action-btn view-btn" onclick="viewTransaction(${record.id})" title="View Details">
+                        👁️ View
                     </button>
                 </td>
             </tr>
@@ -85,15 +124,44 @@ function renderTransactionRecords(records = transactionRecords) {
 
 // Format date to MM-DD-YYYY
 function formatDate(dateString) {
-    const date = new Date(dateString);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${month}-${day}-${year}`;
+    if (!dateString || dateString === 'N/A') return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString;
+        
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const year = date.getFullYear();
+        return `${month}-${day}-${year}`;
+    } catch (e) {
+        return dateString;
+    }
+}
+
+// Format date time
+function formatDateTime(dateString) {
+    if (!dateString || dateString === 'N/A') return 'N/A';
+    
+    try {
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return dateString;
+        
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const year = date.getFullYear();
+        const hours = date.getHours().toString().padStart(2, '0');
+        const minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${month}-${day}-${year} ${hours}:${minutes}`;
+    } catch (e) {
+        return dateString;
+    }
 }
 
 // View transaction details
 async function viewTransaction(id) {
+    showNotification(`Loading transaction #${id} details...`, 'info');
+    
     try {
         const formData = new FormData();
         formData.append('action', 'get_transaction_detail');
@@ -110,43 +178,39 @@ async function viewTransaction(id) {
             const record = result.data;
             
             // Populate modal with transaction details
-            document.getElementById('detailId').textContent = record.id;
-            document.getElementById('detailDate').textContent = formatDate(record.date);
+            document.getElementById('detailId').textContent = `#${record.id}`;
+            document.getElementById('detailDate').textContent = formatDateTime(record.date);
             document.getElementById('detailType').textContent = record.type;
             document.getElementById('detailCustomer').textContent = record.customer;
-            document.getElementById('detailEmployee').textContent = record.employee || 'N/A';
+            document.getElementById('detailEmployee').textContent = record.employee;
             document.getElementById('detailItems').textContent = record.noOfItems === 1 ? '1 item' : `${record.noOfItems} items`;
-            document.getElementById('detailPiece').textContent = `${record.totalPiece} pcs`;
-            document.getElementById('detailKilo').textContent = `${record.totalKilo} kg`;
-            document.getElementById('detailAmount').textContent = `₱${parseFloat(record.totalAmount).toFixed(2)}`;
+            document.getElementById('detailPiece').textContent = `${record.totalPiece || 0} pcs`;
+            document.getElementById('detailKilo').textContent = `${record.totalKilo || 0} kg`;
+            document.getElementById('detailAmount').textContent = `₱${parseFloat(record.totalAmount || 0).toFixed(2)}`;
             
             // Populate items table
             const itemsBody = document.getElementById('detailItemsBody');
             if (record.items && record.items.length > 0) {
                 itemsBody.innerHTML = record.items.map(item => {
-                    // Determine if it's by kilo or piece based on category
-                    const weightCategories = ['Paper', 'Metals', 'Plastics'];
-                    const isKilo = weightCategories.includes(item.category);
-                    const qtyType = isKilo ? 'Kilo' : 'Piece';
-                    const unit = isKilo ? ' kg' : ' pcs';
-                    
+                    const unit = item.qty_type === 'Kilo' ? ' kg' : ' pcs';
                     return `
                         <tr>
                             <td>${item.name}</td>
                             <td>${item.category}</td>
-                            <td>${qtyType}</td>
+                            <td><span class="badge ${item.qty_type === 'Kilo' ? 'badge-warning' : 'badge-info'}">${item.qty_type}</span></td>
                             <td>${item.quantity}${unit}</td>
-                            <td>₱${parseFloat(item.price).toFixed(2)}</td>
-                            <td>₱${parseFloat(item.amount).toFixed(2)}</td>
+                            <td>₱${parseFloat(item.price || 0).toFixed(2)}</td>
+                            <td>₱${parseFloat(item.amount || 0).toFixed(2)}</td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                itemsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No items found</td></tr>';
+                itemsBody.innerHTML = '<tr><td colspan="6" class="empty">No items found in this transaction</td></tr>';
             }
             
             // Show modal
             document.getElementById('detailModal').classList.add('active');
+            showNotification('Transaction details loaded successfully', 'success');
         } else {
             showNotification(result.error || 'Failed to load transaction details', 'error');
         }
@@ -163,26 +227,65 @@ function closeDetailModal() {
 
 // Print transaction
 function printTransaction() {
-    // In a real application, this would redirect to the invoice page or generate a printable invoice
-    const detailId = document.getElementById('detailId').textContent;
-    showNotification(`Preparing invoice for Transaction #${detailId}...`, 'info');
+    const detailId = document.getElementById('detailId').textContent.replace('#', '');
+    showNotification(`Preparing invoice for Transaction ${detailId}...`, 'info');
     
-    // You could redirect to Transaction.html with the transaction data
-    // or generate a new invoice modal similar to the Transaction page
+    // You can implement actual printing here
+    // For now, we'll just show a message
     setTimeout(() => {
-        alert('This would open the printable invoice.\n\nIn production, this would:\n1. Generate a full invoice\n2. Open print dialog\n3. Or redirect to invoice page');
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Invoice - Transaction ${detailId}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 20px; }
+                        .invoice-header { text-align: center; margin-bottom: 30px; }
+                        .invoice-details { margin-bottom: 20px; }
+                        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                        .items-table th, .items-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        .total { text-align: right; font-size: 18px; font-weight: bold; }
+                        @media print { .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="invoice-header">
+                        <h1>ScrapTrack Invoice</h1>
+                        <p>Transaction ${detailId}</p>
+                    </div>
+                    <div class="invoice-details">
+                        <p><strong>Date:</strong> ${document.getElementById('detailDate').textContent}</p>
+                        <p><strong>Customer:</strong> ${document.getElementById('detailCustomer').textContent}</p>
+                        <p><strong>Type:</strong> ${document.getElementById('detailType').textContent}</p>
+                    </div>
+                    <h3>Items:</h3>
+                    ${document.querySelector('.items-table').outerHTML}
+                    <div class="total">
+                        <p>Total Amount: ${document.getElementById('detailAmount').textContent}</p>
+                    </div>
+                    <div class="no-print">
+                        <button onclick="window.print()">Print Invoice</button>
+                        <button onclick="window.close()">Close</button>
+                    </div>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
     }, 500);
 }
 
 // Handle search
-async function handleSearch(e) {
-    const searchTerm = e.target.value.trim();
-    
-    if (searchTerm === '') {
+async function handleSearch(searchTerm) {
+    if (!searchTerm || searchTerm.trim() === '') {
         // Reload all records if search is cleared
         loadTransactionRecords();
         return;
     }
+    
+    const tbody = document.getElementById('recordsTableBody');
+    tbody.innerHTML = '<tr><td colspan="9" class="loading">Searching...</td></tr>';
+    
+    showNotification(`Searching for "${searchTerm}"...`, 'info');
     
     try {
         const formData = new FormData();
@@ -201,127 +304,229 @@ async function handleSearch(e) {
             renderTransactionRecords();
             
             if (result.data.length === 0) {
-                showNotification('No matching transactions found', 'info');
+                showNotification(`No transactions found for "${searchTerm}"`, 'info');
+            } else {
+                showNotification(`Found ${result.data.length} matching transactions`, 'success');
             }
         } else {
             showNotification(result.error || 'Search failed', 'error');
+            renderTransactionRecords([]);
         }
     } catch (error) {
         console.error('Error searching transactions:', error);
-        showNotification('Search failed', 'error');
+        showNotification('Search failed. Please try again.', 'error');
+        tbody.innerHTML = '<tr><td colspan="9" class="error">Search failed. Please try again.</td></tr>';
     }
 }
 
 // Handle filter
-function handleFilter() {
+async function handleFilter() {
     const filterOptions = [
         'All Transactions',
-        'Received Only',
-        'Dispatched Only',
+        'Purchase Only',
+        'Sale Only',
         'Today',
         'This Week',
-        'This Month'
+        'This Month',
+        'Last 30 Days'
     ];
     
-    const choice = prompt(`Filter Options:\n\n${filterOptions.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}\n\nEnter your choice (1-${filterOptions.length}):`);
+    let filterHtml = '<div style="padding: 20px; font-family: Arial;">';
+    filterHtml += '<h3 style="margin-top: 0;">Filter Options</h3>';
+    filterOptions.forEach((opt, i) => {
+        filterHtml += `<div style="padding: 8px 0; border-bottom: 1px solid #eee;">
+            <label style="cursor: pointer; display: block;">
+                <input type="radio" name="filter" value="${i}" id="filter${i}">
+                <span style="margin-left: 8px;">${opt}</span>
+            </label>
+        </div>`;
+    });
+    filterHtml += '<button onclick="applyFilter()" style="margin-top: 20px; padding: 8px 16px; background: #4299e1; color: white; border: none; border-radius: 4px; cursor: pointer;">Apply Filter</button>';
+    filterHtml += '</div>';
     
-    if (!choice) return;
+    const filterWindow = window.open('', '_blank', 'width=400,height=400');
+    filterWindow.document.write(filterHtml);
+    filterWindow.document.close();
     
-    const index = parseInt(choice) - 1;
-    
-    if (index >= 0 && index < filterOptions.length) {
-        switch(index) {
-            case 0: // All
-                renderTransactionRecords();
-                showNotification('Showing all transactions', 'info');
-                break;
-            case 1: // Received Only
-                const received = transactionRecords.filter(r => r.type === 'Received');
-                renderTransactionRecords(received);
-                showNotification(`Showing ${received.length} received transactions`, 'info');
-                break;
-            case 2: // Dispatched Only
-                const dispatched = transactionRecords.filter(r => r.type === 'Dispatched');
-                renderTransactionRecords(dispatched);
-                showNotification(`Showing ${dispatched.length} dispatched transactions`, 'info');
-                break;
-            case 3: // Today
-                const today = new Date().toISOString().split('T')[0];
-                const todayRecords = transactionRecords.filter(r => r.date === today);
-                renderTransactionRecords(todayRecords);
-                showNotification(`Showing ${todayRecords.length} transactions from today`, 'info');
-                break;
-            case 4: // This Week
-                showNotification('Week filter - Feature coming soon!', 'info');
-                break;
-            case 5: // This Month
-                showNotification('Month filter - Feature coming soon!', 'info');
-                break;
+    // Add applyFilter function to the new window
+    filterWindow.applyFilter = function() {
+        const selected = filterWindow.document.querySelector('input[name="filter"]:checked');
+        if (selected) {
+            const index = parseInt(selected.value);
+            applySelectedFilter(index);
+            filterWindow.close();
         }
-    } else {
-        showNotification('Invalid choice', 'error');
+    };
+}
+
+function applySelectedFilter(index) {
+    let filteredRecords = [];
+    const today = new Date().toISOString().split('T')[0];
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+    const monthAgo = new Date();
+    monthAgo.setDate(monthAgo.getDate() - 30);
+    const monthAgoStr = monthAgo.toISOString().split('T')[0];
+    
+    switch(index) {
+        case 0: // All
+            filteredRecords = transactionRecords;
+            showNotification('Showing all transactions', 'info');
+            break;
+        case 1: // Purchase Only
+            filteredRecords = transactionRecords.filter(r => 
+                r.type && (r.type.toLowerCase().includes('purchase') || 
+                          r.type.toLowerCase().includes('buy') ||
+                          r.type.toLowerCase().includes('received'))
+            );
+            showNotification(`Showing ${filteredRecords.length} purchase transactions`, 'info');
+            break;
+        case 2: // Sale Only
+            filteredRecords = transactionRecords.filter(r => 
+                r.type && (r.type.toLowerCase().includes('sell') || 
+                          r.type.toLowerCase().includes('sale') ||
+                          r.type.toLowerCase().includes('dispatched'))
+            );
+            showNotification(`Showing ${filteredRecords.length} sale transactions`, 'info');
+            break;
+        case 3: // Today
+            filteredRecords = transactionRecords.filter(r => r.date === today);
+            showNotification(`Showing ${filteredRecords.length} transactions from today`, 'info');
+            break;
+        case 4: // This Week
+            filteredRecords = transactionRecords.filter(r => r.date >= weekAgoStr);
+            showNotification(`Showing ${filteredRecords.length} transactions from this week`, 'info');
+            break;
+        case 5: // This Month
+            const thisMonth = new Date();
+            const thisMonthStart = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), 1)
+                .toISOString().split('T')[0];
+            filteredRecords = transactionRecords.filter(r => r.date >= thisMonthStart);
+            showNotification(`Showing ${filteredRecords.length} transactions from this month`, 'info');
+            break;
+        case 6: // Last 30 Days
+            filteredRecords = transactionRecords.filter(r => r.date >= monthAgoStr);
+            showNotification(`Showing ${filteredRecords.length} transactions from last 30 days`, 'info');
+            break;
     }
+    
+    renderTransactionRecords(filteredRecords);
 }
 
 // Handle add button
 function handleAdd() {
-    if (confirm('Do you want to create a new transaction?')) {
-        // Redirect to Transaction page
+    if (confirm('Create a new transaction?')) {
         window.location.href = 'Transaction.php';
     }
 }
 
 // Show notification
 function showNotification(message, type = 'info') {
+    // Remove existing notification
+    const existing = document.querySelector('.notification');
+    if (existing) existing.remove();
+    
     const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 16px 24px;
-        background: ${type === 'success' ? '#48bb78' : type === 'error' ? '#f56565' : '#4299e1'};
-        color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        z-index: 10000;
-        animation: slideIn 0.3s ease-out;
-        max-width: 300px;
-    `;
+    notification.className = `notification ${type}`;
     notification.textContent = message;
-
+    
     document.body.appendChild(notification);
-
+    
+    // Auto remove after 3 seconds
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => notification.remove(), 300);
+        if (notification.parentNode) {
+            notification.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => {
+                if (notification.parentNode) notification.remove();
+            }, 300);
+        }
     }, 3000);
 }
 
-// Add CSS animations
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
+// Add CSS for animations and badges
+if (!document.querySelector('#dynamic-styles')) {
+    const style = document.createElement('style');
+    style.id = 'dynamic-styles';
+    style.textContent = `
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
         }
-        to {
-            transform: translateX(0);
-            opacity: 1;
+        
+        /* Badge Styles */
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
         }
-    }
-    
-    @keyframes slideOut {
-        from {
-            transform: translateX(0);
-            opacity: 1;
+        
+        .badge-received {
+            background: #c6f6d5;
+            color: #22543d;
         }
-        to {
-            transform: translateX(100%);
-            opacity: 0;
+        
+        .badge-dispatched {
+            background: #fed7d7;
+            color: #742a2a;
         }
-    }
-`;
-document.head.appendChild(style);
+        
+        .badge-exchange {
+            background: #e9d8fd;
+            color: #44337a;
+        }
+        
+        .badge-info {
+            background: #bee3f8;
+            color: #2a4365;
+        }
+        
+        .badge-warning {
+            background: #feebc8;
+            color: #744210;
+        }
+        
+        /* Action Button */
+        .action-btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+            font-weight: 500;
+        }
+        
+        .action-btn:hover {
+            background: #3182ce;
+        }
+        
+        .view-btn {
+            background: #48bb78;
+        }
+        
+        .view-btn:hover {
+            background: #38a169;
+        }
+        
+        /* Print icon */
+        .print-icon {
+            margin-right: 6px;
+        }
+    `;
+    document.head.appendChild(style);
+}
 
 console.log('ScrapTrack Transaction Records initialized successfully!');
