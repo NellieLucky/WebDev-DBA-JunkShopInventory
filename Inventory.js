@@ -136,8 +136,8 @@ function renderInventoryTable(items = inventoryItems) {
             <td>${item.category}</td>
             <td>${item.qtyType}</td>
             <td>${item.quantity}${item.qtyType === 'by kilo' ? ' kg' : ' pieces'}</td>
-            <td style="text-align: left;">₱${item.buyingPrice.toFixed(2)}</td>
-            <td style="text-align: left;">₱${item.sellingPrice.toFixed(2)}</td>
+            <td style="text-align: right;">₱${item.buyingPrice.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
+            <td style="text-align: right;">₱${item.sellingPrice.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</td>
             <td>${formatDate(item.dateAdded)}</td>
             <td>
                 <div class="action-buttons">
