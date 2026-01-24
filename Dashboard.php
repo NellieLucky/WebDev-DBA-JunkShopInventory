@@ -9,23 +9,28 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 // Handle AJAX requests for dashboard data
 if (isset($_GET['ajax'])) {
     header('Content-Type: application/json');
     
     // Get actual data from database
-    $dashboard_data = [
-        'username' => $_SESSION['username'] ?? 'ExoticNellie69',
-        'today_revenue' => getTodayRevenue(),
-        'total_items' => getTotalItemsInStock(),
-        'today_transactions' => getTodayTransactionsCount(),
-        'most_weighted_item' => getMostWeightedItem(),
-        'net_profit' => getNetProfit(),
-        'recent_transactions' => getRecentTransactions(5),
-        'weekly_revenue' => getWeeklyRevenueData(),
-        'top_items' => getTopItemsBySale(5),
-        'inventory_weight' => getInventoryByWeight(5)
-    ];
+$dashboard_data = [
+    'today_revenue' => getTodayRevenue(),
+    'total_items' => getTotalItemsInStock(),
+    'today_transactions' => getTodayTransactionsCount(),
+    'most_weighted_item' => getMostWeightedItem(),
+    'net_profit' => getNetProfit(),
+    'recent_transactions' => getRecentTransactions(5),
+    'weekly_revenue' => getWeeklyRevenueData(),
+    'top_items' => getTopItemsBySale(),
+    'inventory_weight' => getInventoryByWeight()
+];
+
+
     
     echo json_encode($dashboard_data);
     exit();
@@ -86,212 +91,157 @@ function humanizeTimeAgo($datetime) {
 
 function getTodayRevenue() {
     global $conn;
-    if (!$conn) return 0.0;
-    $sql = "SELECT SUM(ei.Quantity * ei.PriceAtTime) AS Total
-            FROM Exchanged_Items ei
-            JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
-            WHERE CAST(e.Exchange_Date AS DATE) = CAST(GETDATE() AS DATE)
-              AND e.Exchange_Type LIKE '%COMPLETED%'";
+
+    $sql = "
+        SELECT SUM(ti.LineTotal) AS Total
+        FROM dbo.vw_TransactionItems ti
+        JOIN dbo.vw_TransactionSummary ts
+            ON ti.TransactionID = ts.TransactionID
+        WHERE CAST(ts.Transaction_Date AS DATE) = CAST(GETDATE() AS DATE)
+          AND ts.Transaction_Type LIKE '%COMPLETED%'
+    ";
+
     $stmt = sqlsrv_query($conn, $sql);
-    if ($stmt === false) return 0.0;
+    if ($stmt === false) return 0;
+
     $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    return isset($row['Total']) ? floatval($row['Total']) : 0.0;
+    return $row['Total'] ?? 0;
 }
 
 function getTotalItemsInStock() {
     global $conn;
-    if (!$conn) return 0;
-    $sql = "SELECT SUM(Item_Quantity) AS Total FROM Inventory";
+    $sql = "{CALL dbo.sp_GetInventoryStats}";
     $stmt = sqlsrv_query($conn, $sql);
-    if ($stmt === false) return 0;
     $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    return isset($row['Total']) ? intval($row['Total']) : 0;
+    return $row['TotalItems'] ?? 0;
 }
 
 function getTodayTransactionsCount() {
     global $conn;
-    if (!$conn) return 0;
-    $sql = "SELECT COUNT(*) AS Total FROM Exchange
-            WHERE CAST(Exchange_Date AS DATE) = CAST(GETDATE() AS DATE)";
+
+    $sql = "
+        SELECT COUNT(*) AS Total
+        FROM dbo.vw_TransactionSummary
+        WHERE CAST(Transaction_Date AS DATE) = CAST(GETDATE() AS DATE)
+    ";
+
     $stmt = sqlsrv_query($conn, $sql);
     if ($stmt === false) return 0;
+
     $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    return isset($row['Total']) ? intval($row['Total']) : 0;
+    return $row['Total'] ?? 0;
 }
+
 
 function getMostWeightedItem() {
     global $conn;
-    if (!$conn) return 0;
-    $sql = "SELECT TOP 1 ISNULL(Item_Weight, 0) AS MaxWeight
-            FROM Inventory
-            ORDER BY Item_Weight DESC";
+
+    $sql = "SELECT MAX(Item_Weight) AS MaxWeight FROM dbo.vw_InventoryOverview";
     $stmt = sqlsrv_query($conn, $sql);
     if ($stmt === false) return 0;
+
     $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    return isset($row['MaxWeight']) ? floatval($row['MaxWeight']) : 0;
+    return $row['MaxWeight'] ?? 0;
 }
 
 function getRecentTransactions($limit = 5) {
     global $conn;
-    if (!$conn) return [];
-    $sql = "SELECT TOP ($limit)
-                e.Exchange_Type,
-                e.Exchange_Date,
-                e.Total_No_Of_Items,
-                c.Name AS CustomerName
-            FROM Exchange e
-            JOIN Customer c ON e.Customer_ID = c.CustomerID
-            ORDER BY e.Exchange_Date DESC";
+
+    $sql = "{CALL dbo.sp_GetAllTransactions}";
     $stmt = sqlsrv_query($conn, $sql);
+
     if ($stmt === false) return [];
+
     $out = [];
+    $count = 0;
+
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-        $etype = strtolower((string)$row['Exchange_Type']);
-        $type = (strpos($etype, 'sell') !== false || strpos($etype, 'sold') !== false) ? 'sold'
-              : ((strpos($etype, 'buy') !== false || strpos($etype, 'bought') !== false) ? 'bought' : 'exchange');
-        $icon = $type === 'sold' ? '💰' : ($type === 'bought' ? '📦' : '🔄');
+        if ($count++ >= $limit) break;
+
         $out[] = [
-            'type' => $type,
+            'type' => strtolower($row['Transaction_Type']),
             'item_name' => $row['CustomerName'],
-            'quantity' => ($row['Total_No_Of_Items'] !== null ? intval($row['Total_No_Of_Items']).' items' : ''),
-            'time_ago' => humanizeTimeAgo($row['Exchange_Date']),
-            'icon' => $icon
+            'quantity' => $row['Total_No_Of_Items'] . ' items',
+            'time_ago' => humanizeTimeAgo($row['Transaction_Date']),
+            'icon' => '🔄'
         ];
     }
+
     return $out;
 }
 
 function getWeeklyRevenueData() {
     global $conn;
-    $labels = [];
-    $start = strtotime('-6 days');
-    for ($i = 0; $i < 7; $i++) {
-        $labels[] = date('D', strtotime("+$i day", $start)); // Use 'D' for shorter day names
-    }
-    
-    $revenueMap = array_fill_keys($labels, 0.0);
-    $expenseMap = array_fill_keys($labels, 0.0); // Assuming expense data exists
 
-    if ($conn) {
-        // Revenue data
-        $sql = "SELECT DATENAME(weekday, e.Exchange_Date) AS DayName,
-                       SUM(ei.Quantity * ei.PriceAtTime) AS Rev
-                FROM Exchanged_Items ei
-                JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
-                WHERE e.Exchange_Date >= DATEADD(day, -6, CAST(GETDATE() AS DATE))
-                GROUP BY DATENAME(weekday, e.Exchange_Date)";
-        $stmt = sqlsrv_query($conn, $sql);
-        if ($stmt !== false) {
-            while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-                $dayname = substr($row['DayName'], 0, 3); // Get first 3 chars
-                if (isset($revenueMap[$dayname])) {
-                    $revenueMap[$dayname] = floatval($row['Rev']);
-                }
-            }
-        }
-        
-        // Expense data (you need to adjust this based on your actual expense tracking)
-        // For now, using placeholder
-        foreach ($expenseMap as $day => $value) {
-            $expenseMap[$day] = rand(1000, 5000); // Placeholder
-        }
+    $sql = "{CALL dbo.sp_GetWeeklyRevenue}";
+    $stmt = sqlsrv_query($conn, $sql);
+
+    if ($stmt === false) {
+        return ['labels' => [], 'revenue' => [], 'expense' => []];
+    }
+
+    $labels = [];
+    $revenue = [];
+
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $labels[] = $row['TransactionDate'];   // adjust if named differently
+        $revenue[] = $row['TotalRevenue'];
     }
 
     return [
         'labels' => $labels,
-        'revenue' => array_values($revenueMap),
-        'expense' => array_values($expenseMap)
+        'revenue' => $revenue,
+        'expense' => array_fill(0, count($labels), 0)
     ];
 }
 
-function getTopItemsBySale($limit = 5) {
+
+function getTopItemsBySale() {
     global $conn;
-    if (!$conn) return [];
-    $sql = "SELECT TOP ($limit)
-                i.Item_Name AS Name,
-                SUM(ei.Quantity) AS TotalQty,
-                SUM(ei.Quantity * ei.PriceAtTime) AS TotalSales
-            FROM Exchanged_Items ei
-            JOIN Inventory i ON ei.Item_ID = i.ItemID
-            JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
-            WHERE e.Exchange_Type LIKE '%COMPLETED%'
-            GROUP BY i.Item_Name
-            ORDER BY TotalSales DESC";
+
+    $sql = "{CALL dbo.sp_GetTop5Sales}";
     $stmt = sqlsrv_query($conn, $sql);
+
     if ($stmt === false) return [];
+
     $items = [];
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
         $items[] = [
-            'name' => $row['Name'],
-            'quantity' => intval($row['TotalQty']).' pcs',
-            'price' => '₱'.number_format(floatval($row['TotalSales']), 2),
+            'name' => $row['Item_Name'],
+            'quantity' => ($row['Quantity'] ?? 0) . ' pcs',
+            'price' => '₱' . number_format($row['LineTotal'] ?? 0, 2),
             'icon' => '📦'
         ];
     }
     return $items;
 }
 
-function getInventoryByWeight($limit = 5) {
+
+function getInventoryByWeight() {
     global $conn;
-    if (!$conn) return ['total' => 0, 'items' => []];
-    
-    $sqlTotal = "SELECT SUM(ISNULL(Item_Weight,0)) AS TotalWeight FROM Inventory";
-    $stmtTotal = sqlsrv_query($conn, $sqlTotal);
-    $total = 0.0;
-    if ($stmtTotal !== false) {
-        $rowT = sqlsrv_fetch_array($stmtTotal, SQLSRV_FETCH_ASSOC);
-        $total = isset($rowT['TotalWeight']) ? floatval($rowT['TotalWeight']) : 0.0;
+    $sql = "{CALL dbo.sp_GetInventoryByWeightASC}";
+    $stmt = sqlsrv_query($conn, $sql);
+
+    $items = [];
+    $total = 0;
+
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $items[] = [
+            'name' => $row['Item_Name'],
+            'weight' => $row['Item_Weight']
+        ];
+        $total += $row['Item_Weight'];
     }
 
-    $sqlTop = "SELECT TOP ($limit) Item_Name, SUM(ISNULL(Item_Weight,0)) AS W
-               FROM Inventory
-               GROUP BY Item_Name
-               HAVING SUM(ISNULL(Item_Weight,0)) > 0
-               ORDER BY W DESC";
-    $stmtTop = sqlsrv_query($conn, $sqlTop);
-    $colors = ['#E8B4F5', '#7DD3FC', '#FDE047', '#60A5FA', '#A78BFA'];
-    $items = [];
-    $i = 0;
-    if ($stmtTop !== false && $total > 0) {
-        while ($row = sqlsrv_fetch_array($stmtTop, SQLSRV_FETCH_ASSOC)) {
-            $pct = ($row['W'] > 0) ? (floatval($row['W']) / $total) * 100.0 : 0.0;
-            $items[] = [
-                'name' => $row['Item_Name'],
-                'weight' => floatval($row['W']),
-                'percentage' => round($pct, 1),
-                'color' => $colors[$i % count($colors)]
-            ];
-            $i++;
-        }
-    }
-    
-    // If no items with weight, create sample data
-    if (empty($items)) {
-        $items = [
-            ['name' => 'Metal', 'weight' => 150, 'percentage' => 40, 'color' => '#E8B4F5'],
-            ['name' => 'Plastic', 'weight' => 120, 'percentage' => 32, 'color' => '#7DD3FC'],
-            ['name' => 'Paper', 'weight' => 80, 'percentage' => 21, 'color' => '#FDE047'],
-            ['name' => 'Glass', 'weight' => 30, 'percentage' => 7, 'color' => '#60A5FA']
-        ];
-        $total = 380;
-    }
-    
-    return ['total' => round($total, 2), 'items' => $items];
+    return ['total' => $total, 'items' => $items];
 }
 
 function getNetProfit() {
-    global $conn;
-    if (!$conn) return 0.0;
-    $sql = "SELECT SUM(ei.Quantity * (ei.PriceAtTime - i.Buying_Price)) AS Profit
-            FROM Exchanged_Items ei
-            JOIN Inventory i ON ei.Item_ID = i.ItemID
-            JOIN Exchange e ON ei.Exchange_ID = e.ExchangeID
-            WHERE e.Exchange_Type LIKE '%COMPLETED%'";
-    $stmt = sqlsrv_query($conn, $sql);
-    if ($stmt === false) return 0.0;
-    $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    return isset($row['Profit']) ? floatval($row['Profit']) : 0.0;
+    return getTodayRevenue();
 }
+
+
+
 ?>
 <!DOCTYPE html>
 <html lang="en">

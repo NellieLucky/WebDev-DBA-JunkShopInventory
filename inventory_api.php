@@ -36,7 +36,7 @@ function getOrCreateCategory($categoryName) {
     global $conn;
 
     // First, try to find existing category (case-insensitive)
-    $sql = "SELECT CategoryID FROM Category WHERE LOWER(Category_Name) = LOWER()";
+    $sql = "SELECT CategoryID FROM Categories WHERE LOWER(Category_Name) = LOWER()";
     $stmt = sqlsrv_query($conn, $sql, [$categoryName]);
 
     if ($stmt && $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
@@ -44,7 +44,7 @@ function getOrCreateCategory($categoryName) {
     }
 
     // If not found, insert new category and get the ID
-    $insertSql = "INSERT INTO Category (Category_Name) OUTPUT INSERTED.CategoryID VALUES (?)";
+    $insertSql = "INSERT INTO Categories (Category_Name) OUTPUT INSERTED.CategoryID VALUES (?)";
     $insertStmt = sqlsrv_query($conn, $insertSql, [$categoryName]);
 
     if ($insertStmt && $row = sqlsrv_fetch_array($insertStmt, SQLSRV_FETCH_ASSOC)) {
@@ -59,7 +59,7 @@ function getAllInventoryItems() {
 
     $sql = "SELECT i.ItemID, i.Item_Name, i.CategoryID, c.Category_Name, i.Item_Quantity, i.Item_Weight, i.Buying_Price, i.Selling_Price 
             FROM Inventory i 
-            LEFT JOIN Category c ON i.CategoryID = c.CategoryID 
+            LEFT JOIN Categories c ON i.CategoryID = c.CategoryID 
             ORDER BY i.Item_Name";
     $stmt = sqlsrv_query($conn, $sql);
 

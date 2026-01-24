@@ -50,7 +50,7 @@ function getInventoryForTransaction() {
     // Removed caching to ensure fresh data and faster response
     $sql = "SELECT i.ItemID, i.Item_Name, c.Category_Name, i.Item_Quantity, i.Buying_Price, i.Selling_Price, i.Item_Weight
             FROM Inventory i
-            LEFT JOIN Category c ON i.CategoryID = c.CategoryID
+            LEFT JOIN Categories c ON i.CategoryID = c.CategoryID
             ORDER BY i.Item_Name";
 
     $stmt = sqlsrv_query($conn, $sql);

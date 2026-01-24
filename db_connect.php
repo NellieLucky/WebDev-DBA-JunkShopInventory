@@ -1,5 +1,5 @@
 <?php
-$serverName = "localhost\\SQLEXPRESS"; // use named instance if SQL Server Express
+$serverName = "localhost"; // use named instance if SQL Server Express
 $connectionOptions = [
     "Database" => "JSDatabase",
     "TrustServerCertificate" => true, // safe for local dev
