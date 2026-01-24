@@ -239,5 +239,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
     </div>
 
     <script src="Transaction.js?v=<?php echo time(); ?>"></script>
+    <script src="user-session.js"></script>
+    <script src="logout-dialog.js"></script>
 </body>
 </html>

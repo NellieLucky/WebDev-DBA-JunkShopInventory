@@ -492,5 +492,7 @@ function searchEmployees($searchTerm) {
     <div class="toast" id="toast"></div>
 
     <script src="EmployeeManagement.js"></script>
+    <script src="user-session.js"></script>
+    <script src="logout-dialog.js"></script>
 </body>
 </html>

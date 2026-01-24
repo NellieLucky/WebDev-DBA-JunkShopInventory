@@ -3,6 +3,8 @@
 let employees = [];
 let currentEmployeeId = null;
 let isEditMode = false;
+let currentEmployeeFilter = 0; // Track current filter index (0 = All Employees)
+let currentSelectedPosition = null; // Track currently selected position filter
 
 // DOM Elements
 const employeeModal = document.getElementById('employeeModal');
@@ -29,6 +31,12 @@ function setupEventListeners() {
     
     // Search Input
     searchInput.addEventListener('input', handleSearch);
+    
+    // Filter Button
+    const filterBtn = document.getElementById('filterBtn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', handleFilter);
+    }
     
     // Close modals when clicking outside
     employeeModal.addEventListener('click', function(e) {
@@ -267,13 +275,19 @@ function handleSearch() {
     }
     
     const filteredEmployees = employees.filter(employee => {
-        const fullName = `${employee.FirstName} ${employee.LastName}`.toLowerCase();
+        const fullName = `${employee.FirstName} ${employee.MiddleName || ''} ${employee.LastName || ''}`.toLowerCase();
         const email = (employee.Email || '').toLowerCase();
         const position = (employee.Position || '').toLowerCase();
+        const contact = (employee.Contact_Number || '').toLowerCase();
+        const dateStarted = (employee.DateStarted || '').toLowerCase();
+        const id = (employee.ManagementID || '').toString().toLowerCase();
         
-        return fullName.includes(searchTerm) || 
+        return id.includes(searchTerm) ||
+               fullName.includes(searchTerm) || 
                email.includes(searchTerm) || 
-               position.includes(searchTerm);
+               position.includes(searchTerm) ||
+               contact.includes(searchTerm) ||
+               dateStarted.includes(searchTerm);
     });
     
     renderEmployees(filteredEmployees);
@@ -288,4 +302,98 @@ function showToast(message, type = 'success') {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 3000);
+}
+
+// Handle Filter
+function handleFilter() {
+    const filterOptions = ['All Employees', 'By Position', 'Recently Added'];
+    
+    showFilterModal('Filter Employees', filterOptions, function(selectedIndex) {
+        currentEmployeeFilter = selectedIndex; // Track current filter
+        let filteredEmployees = employees;
+        
+        switch(selectedIndex) {
+            case 0: // All Employees
+                currentSelectedPosition = null;
+                filteredEmployees = employees;
+                renderEmployees(filteredEmployees);
+                break;
+            case 1: // By Position
+                const positions = [...new Set(employees.map(emp => emp.Position))].filter(Boolean);
+                showPositionFilterModal(positions);
+                return;
+            case 2: // Recently Added
+                currentSelectedPosition = null;
+                filteredEmployees = [...employees].sort((a, b) => new Date(b.DateStarted) - new Date(a.DateStarted));
+                renderEmployees(filteredEmployees);
+                break;
+        }
+    }, currentEmployeeFilter);
+}
+
+function showPositionFilterModal(positions) {
+    // Find the index of the currently selected position
+    const currentPositionIndex = currentSelectedPosition ? positions.indexOf(currentSelectedPosition) : -1;
+    
+    showFilterModal('Filter by Position', positions, function(selectedIndex) {
+        const selectedPosition = positions[selectedIndex];
+        currentSelectedPosition = selectedPosition; // Track selected position
+        currentEmployeeFilter = 1; // Mark as "By Position" filter
+        const filteredEmployees = employees.filter(emp => emp.Position === selectedPosition);
+        renderEmployees(filteredEmployees);
+    }, currentPositionIndex);
+}
+
+function showFilterModal(title, options, callback, currentFilterIndex = -1) {
+    // Remove any existing modal
+    const existingModal = document.querySelector('.filter-modal-overlay');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'filter-modal-overlay';
+    modal.innerHTML = `
+        <div class="filter-modal">
+            <div class="filter-modal-header">
+                <h2>${title}</h2>
+                <button class="filter-modal-close">&times;</button>
+            </div>
+            <div class="filter-modal-body">
+                <div class="filter-options">
+                    ${options.map((opt, i) => `
+                        <button class="filter-option ${i === currentFilterIndex ? 'active' : ''}" data-index="${i}">
+                            <span class="filter-number">${i + 1}</span>
+                            <span class="filter-text">${opt}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close button handler
+    const closeBtn = modal.querySelector('.filter-modal-close');
+    closeBtn.addEventListener('click', () => {
+        modal.remove();
+    });
+    
+    // Click outside to close
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+    
+    // Option button handlers
+    const optionButtons = modal.querySelectorAll('.filter-option');
+    optionButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = parseInt(btn.getAttribute('data-index'));
+            modal.remove();
+            callback(index);
+        });
+    });
 }

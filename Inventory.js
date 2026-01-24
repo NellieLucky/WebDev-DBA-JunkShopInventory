@@ -2,6 +2,9 @@
 
 let inventoryItems = [];
 let currentEditId = null;
+let currentInventoryFilter = 0; // Track current filter index (0 = All Items)
+let currentSelectedCategory = null; // Track currently selected category filter
+let currentSelectedQtyType = null; // Track currently selected quantity type filter
 
 // Fetch inventory from PHP and update the table
 function loadInventoryFromPHP() {
@@ -148,26 +151,26 @@ function formatDate(dateString) {
 }
 
 // Update statistics
-function updateStats() {
+function updateStats(items = inventoryItems) {
     // Calculate total items
-    const TotalItems = inventoryItems
+    const TotalItems = items
         .filter(item => item.qtyType === 'by piece')
         .reduce((sum, item) => sum + item.quantity, 0);
     document.getElementById('TotalItems').textContent = TotalItems;
 
     // Calculate total weight (only for Kilo items)
-    const TotalWeight = inventoryItems
+    const TotalWeight = items
         .filter(item => item.qtyType === 'by kilo')
         .reduce((sum, item) => sum + item.quantity, 0);
     document.getElementById('TotalWeight').textContent = `${TotalWeight} kg`;
 
     // Calculate selling price
-    const TotalSellingPrice = inventoryItems.reduce((sum, item) => 
+    const TotalSellingPrice = items.reduce((sum, item) => 
         sum + (item.quantity * item.sellingPrice), 0);
     document.getElementById('TotalSellingPrice').textContent = `₱${TotalSellingPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     // Update items count
-    document.getElementById('itemsCount').textContent = `${inventoryItems.length} items found`;
+    document.getElementById('itemsCount').textContent = `${items.length} items found`;
 }
 
 // Open add modal
@@ -256,23 +259,127 @@ function handleSearch(e) {
     const searchTerm = e.target.value.toLowerCase();
     
     if (searchTerm === '') {
-        renderInventoryTable();
+        renderInventoryTable(inventoryItems);
+        updateStats(inventoryItems);
         return;
     }
 
     const filteredItems = inventoryItems.filter(item => 
-        item.name.toLowerCase().includes(searchTerm) ||
-        item.category.toLowerCase().includes(searchTerm) ||
-        item.qtyType.toLowerCase().includes(searchTerm)
+        (item.name && item.name.toLowerCase().includes(searchTerm)) ||
+        (item.category && item.category.toLowerCase().includes(searchTerm)) ||
+        (item.qtyType && item.qtyType.toLowerCase().includes(searchTerm)) ||
+        (item.quantity && item.quantity.toString().includes(searchTerm)) ||
+        (item.buyingPrice && item.buyingPrice.toString().includes(searchTerm)) ||
+        (item.sellingPrice && item.sellingPrice.toString().includes(searchTerm)) ||
+        (item.dateAdded && item.dateAdded.toLowerCase().includes(searchTerm))
     );
 
     renderInventoryTable(filteredItems);
+    updateStats(filteredItems);
     document.getElementById('itemsCount').textContent = `${filteredItems.length} items found`;
 }
 
 // Handle filter
 function handleFilter() {
-    alert('Filter functionality coming soon!\n\nYou can filter by:\n- Category\n- Quantity Type\n- Date Range\n- Price Range');
+    const filterOptions = [
+        'All Items',
+        'By Category',
+        'By Quantity Type',
+        'Recently Added'
+    ];
+    
+    showFilterModal('Filter Inventory', filterOptions, (index) => {
+        currentInventoryFilter = index; // Track current filter
+        if (index === 0) { // All Items
+            currentSelectedCategory = null;
+            currentSelectedQtyType = null;
+            renderInventoryTable(inventoryItems);
+            updateStats(inventoryItems);
+            showNotification('Showing all inventory items', 'info');
+        } else if (index === 1) { // By Category
+            const categories = [...new Set(inventoryItems.map(item => item.category))].filter(Boolean);
+            showCategoryFilterModal(categories);
+        } else if (index === 2) { // By Quantity Type
+            const qtyTypes = [...new Set(inventoryItems.map(item => item.qtyType))].filter(Boolean);
+            showQtyTypeFilterModal(qtyTypes);
+        } else if (index === 3) { // Recently Added
+            currentSelectedCategory = null;
+            currentSelectedQtyType = null;
+            const sorted = [...inventoryItems].sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+            renderInventoryTable(sorted);
+            updateStats(sorted);
+            showNotification('Showing recently added items first', 'info');
+        }
+    }, currentInventoryFilter);
+}
+
+function showCategoryFilterModal(categories) {
+    // Find the index of the currently selected category
+    const currentCategoryIndex = currentSelectedCategory ? categories.indexOf(currentSelectedCategory) : -1;
+    
+    showFilterModal('Select Category', categories, (index) => {
+        const selectedCategory = categories[index];
+        currentSelectedCategory = selectedCategory; // Track selected category
+        currentInventoryFilter = 1; // Mark as "By Category" filter
+        const filtered = inventoryItems.filter(item => item.category === selectedCategory);
+        renderInventoryTable(filtered);
+        updateStats(filtered);
+        showNotification(`Showing ${filtered.length} items in ${selectedCategory}`, 'info');
+    }, currentCategoryIndex);
+}
+
+function showQtyTypeFilterModal(qtyTypes) {
+    // Find the index of the currently selected quantity type
+    const currentQtyTypeIndex = currentSelectedQtyType ? qtyTypes.indexOf(currentSelectedQtyType) : -1;
+    
+    showFilterModal('Select Quantity Type', qtyTypes, (index) => {
+        const selectedType = qtyTypes[index];
+        currentSelectedQtyType = selectedType; // Track selected quantity type
+        currentInventoryFilter = 2; // Mark as "By Quantity Type" filter
+        const filtered = inventoryItems.filter(item => item.qtyType === selectedType);
+        renderInventoryTable(filtered);
+        updateStats(filtered);
+        showNotification(`Showing ${filtered.length} items measured in ${selectedType}`, 'info');
+    }, currentQtyTypeIndex);
+}
+
+// Generic filter modal function
+function showFilterModal(title, options, callback, currentFilterIndex = -1) {
+    const modal = document.createElement('div');
+    modal.className = 'filter-modal-overlay';
+    modal.innerHTML = `
+        <div class="filter-modal">
+            <div class="filter-modal-header">
+                <h2>${title}</h2>
+                <button class="filter-modal-close">&times;</button>
+            </div>
+            <div class="filter-modal-body">
+                <div class="filter-options">
+                    ${options.map((opt, i) => `
+                        <button class="filter-option ${i === currentFilterIndex ? 'active' : ''}" data-index="${i}">
+                            <span class="filter-number">${i + 1}</span>
+                            <span class="filter-text">${opt}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelector('.filter-modal-close').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+    
+    modal.querySelectorAll('.filter-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = parseInt(btn.getAttribute('data-index'));
+            callback(index);
+            modal.remove();
+        });
+    });
 }
 
 // Show notification

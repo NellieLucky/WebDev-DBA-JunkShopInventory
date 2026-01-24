@@ -71,8 +71,10 @@
         <!-- Search Section -->
         <section class="search-section">
             <div class="search-header">
-                <h3>Search Inventory</h3>
-                <p class="search-subtitle">Find items by name, category or description</p>
+                <div>
+                    <h3>Search Inventory</h3>
+                    <p class="search-subtitle">Find items by name, category or description</p>
+                </div>
             </div>
             
             <div class="search-bar-container">
@@ -153,71 +155,78 @@
         </section>
     </main>
 
-    <!-- Transaction Detail Modal -->
+    <!-- Transaction Detail Modal - Invoice Layout -->
     <div class="modal" id="detailModal">
         <div class="modal-backdrop" onclick="closeDetailModal()"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Transaction Details</h2>
+        <div class="modal-content invoice-modal">
+            <div class="modal-header invoice-header">
+                <div class="invoice-title-section">
+                    <h1 class="invoice-logo">ScrapTrack</h1>
+                </div>
+                <div class="invoice-title-text">INVOICE</div>
                 <button class="close-btn" onclick="closeDetailModal()">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <span class="detail-label">Transaction ID:</span>
-                        <span class="detail-value" id="detailId">1</span>
+            <div class="modal-body invoice-body">
+                <div class="invoice-info-section">
+                    <div class="invoice-info-column">
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">Date:</span>
+                            <span class="invoice-info-value" id="detailDate">01-24-2026</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">Transaction ID:</span>
+                            <span class="invoice-info-value" id="detailId">14</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">Invoiced To:</span>
+                            <span class="invoice-info-value" id="detailCustomer">Len</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label"># Qty by Piece:</span>
+                            <span class="invoice-info-value" id="detailPiece">2 pcs</span>
+                        </div>
                     </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Date:</span>
-                        <span class="detail-value" id="detailDate">2025-12-23</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Type:</span>
-                        <span class="detail-value" id="detailType">Received</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Customer:</span>
-                        <span class="detail-value" id="detailCustomer">Gwyneth</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">No. of Items:</span>
-                        <span class="detail-value" id="detailItems">1 item</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Total by Piece:</span>
-                        <span class="detail-value" id="detailPiece">69 pcs</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Total by Kilo:</span>
-                        <span class="detail-value" id="detailKilo">69 kg</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Total Amount:</span>
-                        <span class="detail-value" id="detailAmount">₱69.00</span>
+                    <div class="invoice-info-column">
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">Trans. Type:</span>
+                            <span class="invoice-info-value" id="detailType">Dispatched</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">No. of Items:</span>
+                            <span class="invoice-info-value" id="detailItems">2 items</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label"># Qty by Weight:</span>
+                            <span class="invoice-info-value" id="detailKilo">2 kg</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="items-section">
-                    <h3>Items in Transaction</h3>
-                    <table class="items-table">
-                        <thead>
-                            <tr>
-                                <th>ITEM</th>
-                                <th>CATEGORY</th>
-                                <th>QTY TYPE</th>
-                                <th>QUANTITY</th>
-                                <th>PRICE</th>
-                                <th>AMOUNT</th>
-                            </tr>
-                        </thead>
-                        <tbody id="detailItemsBody">
-                            <!-- Items will be inserted here -->
-                        </tbody>
-                    </table>
+                <table class="invoice-items-table">
+                    <thead>
+                        <tr>
+                            <th>ITEM</th>
+                            <th>SELLING PRICE</th>
+                            <th>QUANTITY</th>
+                            <th>AMOUNT</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailItemsBody">
+                        <!-- Items will be inserted here -->
+                    </tbody>
+                </table>
+
+                <div class="invoice-total-section">
+                    <div class="invoice-total-box">
+                        <div class="invoice-total-amount">
+                            <span>Total Amount:</span>
+                            <span id="detailAmount">₱40.00</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="modal-actions">
-                    <button class="btn-print" onclick="printTransaction()">Print Invoice</button>
+                <div class="modal-actions invoice-actions">
+                    <button class="btn-print" onclick="window.print()">Print</button>
                     <button class="btn-close" onclick="closeDetailModal()">Close</button>
                 </div>
             </div>

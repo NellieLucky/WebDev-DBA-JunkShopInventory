@@ -43,7 +43,7 @@ function getTransactionRecords() {
         $records[] = [
             'id' => $row['TransactionID'],
             'date' => $row['Transaction_Date'] ? $row['Transaction_Date']->format('Y-m-d') : 'N/A',
-            'type' => $row['Transaction_Type'] === 'Purchase' ? 'Received' : 'Dispatched',
+            'type' => strpos($row['Transaction_Type'], 'Purchase') !== false ? 'Received' : 'Dispatched',
             'customer' => $row['CustomerName'],
             'noOfItems' => $row['Total_No_Of_Items'],
             'totalPiece' => $totals['pieces'],
@@ -157,7 +157,7 @@ function getTransactionDetail($transactionId) {
         'data' => [
             'id' => $header['TransactionID'],
             'date' => $header['Transaction_Date'] ? $header['Transaction_Date']->format('Y-m-d') : 'N/A',
-            'type' => $header['Transaction_Type'] === 'Purchase' ? 'Received' : 'Dispatched',
+            'type' => strpos($header['Transaction_Type'], 'Purchase') !== false ? 'Received' : 'Dispatched',
             'customer' => $header['CustomerName'],
             'employee' => $header['EmployeeName'] ?: 'N/A',
             'noOfItems' => $header['Total_No_Of_Items'],
@@ -219,10 +219,17 @@ if (isset($_POST['action'])) {
             echo json_encode(getTransactionRecords());
             break;
         case 'get_transaction_detail':
-            echo json_encode(getTransactionDetail($_POST['transaction_id']));
+            if (isset($_POST['transaction_id'])) {
+                echo json_encode(getTransactionDetail($_POST['transaction_id']));
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Transaction ID not provided']);
+            }
             break;
         case 'search_records':
             echo json_encode(searchTransactionRecords($_POST['search']));
+            break;
+        default:
+            echo json_encode(['success' => false, 'error' => 'Invalid action']);
             break;
     }
     exit();
@@ -303,14 +310,16 @@ if (isset($_POST['action'])) {
 
         <!-- Search and Actions -->
         <section class="search-section">
-            <div class="search-container">
-                <span class="search-icon">🔍</span>
-                <input type="text" id="searchInput" placeholder="Search Transaction....." class="search-input">
+            <div class="search-bar-wrapper">
+                <div class="search-container">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchInput" placeholder="Search Transaction....." class="search-input">
+                </div>
+                <button class="filter-btn" id="filterBtn">
+                    <span class="filter-icon">🔽</span>
+                </button>
+                <button class="add-btn" id="addBtn">Add</button>
             </div>
-            <button class="filter-btn" id="filterBtn">
-                <span class="filter-icon">🔽</span>
-            </button>
-            <button class="add-btn" id="addBtn">Add</button>
         </section>
 
         <!-- Transaction Records Table -->
@@ -341,75 +350,78 @@ if (isset($_POST['action'])) {
         </section>
     </main>
 
-    <!-- Transaction Detail Modal -->
+    <!-- Transaction Detail Modal - Invoice Layout -->
     <div id="detailModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Transaction Details</h2>
+        <div class="modal-content invoice-modal">
+            <div class="modal-header invoice-header">
+                <div style="flex: 1;">
+                    <h1 class="invoice-logo">ScrapTrack</h1>
+                </div>
+                <div class="invoice-title-text">INVOICE</div>
                 <span class="close-btn" onclick="closeDetailModal()">&times;</span>
             </div>
 
-            <div class="modal-body">
-                <div class="transaction-summary">
-                    <div class="summary-row">
-                        <span class="label">Transaction ID:</span>
-                        <span class="value" id="detailId">-</span>
+            <div class="modal-body invoice-body">
+                <div class="invoice-info-section">
+                    <div class="invoice-info-column">
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">Date:</span>
+                            <span class="invoice-info-value" id="detailDate">-</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">Transaction ID:</span>
+                            <span class="invoice-info-value" id="detailId">-</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">Invoiced To:</span>
+                            <span class="invoice-info-value" id="detailCustomer">-</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label"># Qty by Piece:</span>
+                            <span class="invoice-info-value" id="detailPiece">-</span>
+                        </div>
                     </div>
-                    <div class="summary-row">
-                        <span class="label">Date:</span>
-                        <span class="value" id="detailDate">-</span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="label">Type:</span>
-                        <span class="value" id="detailType">-</span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="label">Customer:</span>
-                        <span class="value" id="detailCustomer">-</span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="label">Employee:</span>
-                        <span class="value" id="detailEmployee">-</span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="label">No. of Items:</span>
-                        <span class="value" id="detailItems">-</span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="label">Total Pieces:</span>
-                        <span class="value" id="detailPiece">-</span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="label">Total Kilos:</span>
-                        <span class="value" id="detailKilo">-</span>
-                    </div>
-                    <div class="summary-row">
-                        <span class="label">Total Amount:</span>
-                        <span class="value" id="detailAmount">-</span>
+                    <div class="invoice-info-column">
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">Trans. Type:</span>
+                            <span class="invoice-info-value" id="detailType">-</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label">No. of Items:</span>
+                            <span class="invoice-info-value" id="detailItems">-</span>
+                        </div>
+                        <div class="invoice-info-row">
+                            <span class="invoice-info-label"># Qty by Weight:</span>
+                            <span class="invoice-info-value" id="detailKilo">-</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="items-section">
-                    <h3>Items in Transaction</h3>
-                    <table class="items-table">
-                        <thead>
-                            <tr>
-                                <th>ITEM</th>
-                                <th>CATEGORY</th>
-                                <th>QTY TYPE</th>
-                                <th>QUANTITY</th>
-                                <th>PRICE</th>
-                                <th>AMOUNT</th>
-                            </tr>
-                        </thead>
-                        <tbody id="detailItemsBody">
-                            <!-- Items will be inserted here -->
-                        </tbody>
-                    </table>
+                <table class="invoice-items-table">
+                    <thead>
+                        <tr>
+                            <th>ITEM</th>
+                            <th>SELLING PRICE</th>
+                            <th>QUANTITY</th>
+                            <th>AMOUNT</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailItemsBody">
+                        <!-- Items will be inserted here -->
+                    </tbody>
+                </table>
+
+                <div class="invoice-total-section">
+                    <div class="invoice-total-box">
+                        <div class="invoice-total-amount">
+                            <span>Total Amount:</span>
+                            <span id="detailAmount">₱0.00</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="modal-actions">
-                    <button class="btn-print" onclick="printTransaction()">Print Invoice</button>
+                <div class="modal-actions invoice-actions">
+                    <button class="btn-print" onclick="window.print()">Print</button>
                     <button class="btn-close" onclick="closeDetailModal()">Close</button>
                 </div>
             </div>
@@ -417,5 +429,6 @@ if (isset($_POST['action'])) {
     </div>
 
     <script src="TransactionRecords.js"></script>
-</body>
+    <script src="user-session.js"></script>
+    <script src="logout-dialog.js"></script>
 </html>

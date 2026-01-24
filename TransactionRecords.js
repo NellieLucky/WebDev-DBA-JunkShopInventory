@@ -2,6 +2,7 @@
 
 // Store transaction records fetched from backend
 let transactionRecords = [];
+let currentFilter = 0; // Track current filter index (0 = All)
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -114,35 +115,26 @@ async function viewTransaction(id) {
             document.getElementById('detailDate').textContent = formatDate(record.date);
             document.getElementById('detailType').textContent = record.type;
             document.getElementById('detailCustomer').textContent = record.customer;
-            document.getElementById('detailEmployee').textContent = record.employee || 'N/A';
             document.getElementById('detailItems').textContent = record.noOfItems === 1 ? '1 item' : `${record.noOfItems} items`;
             document.getElementById('detailPiece').textContent = `${record.totalPiece} pcs`;
             document.getElementById('detailKilo').textContent = `${record.totalKilo} kg`;
             document.getElementById('detailAmount').textContent = `₱${parseFloat(record.totalAmount).toFixed(2)}`;
             
-            // Populate items table
+            // Populate items table for invoice
             const itemsBody = document.getElementById('detailItemsBody');
             if (record.items && record.items.length > 0) {
                 itemsBody.innerHTML = record.items.map(item => {
-                    // Determine if it's by kilo or piece based on category
-                    const weightCategories = ['Paper', 'Metals', 'Plastics'];
-                    const isKilo = weightCategories.includes(item.category);
-                    const qtyType = isKilo ? 'Kilo' : 'Piece';
-                    const unit = isKilo ? ' kg' : ' pcs';
-                    
                     return `
                         <tr>
                             <td>${item.name}</td>
-                            <td>${item.category}</td>
-                            <td>${qtyType}</td>
-                            <td>${item.quantity}${unit}</td>
                             <td>₱${parseFloat(item.price).toFixed(2)}</td>
+                            <td>${item.quantity}</td>
                             <td>₱${parseFloat(item.amount).toFixed(2)}</td>
                         </tr>
                     `;
                 }).join('');
             } else {
-                itemsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No items found</td></tr>';
+                itemsBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No items found</td></tr>';
             }
             
             // Show modal
@@ -161,22 +153,9 @@ function closeDetailModal() {
     document.getElementById('detailModal').classList.remove('active');
 }
 
-// Print transaction
-function printTransaction() {
-    // In a real application, this would redirect to the invoice page or generate a printable invoice
-    const detailId = document.getElementById('detailId').textContent;
-    showNotification(`Preparing invoice for Transaction #${detailId}...`, 'info');
-    
-    // You could redirect to Transaction.html with the transaction data
-    // or generate a new invoice modal similar to the Transaction page
-    setTimeout(() => {
-        alert('This would open the printable invoice.\n\nIn production, this would:\n1. Generate a full invoice\n2. Open print dialog\n3. Or redirect to invoice page');
-    }, 500);
-}
-
 // Handle search
 async function handleSearch(e) {
-    const searchTerm = e.target.value.trim();
+    const searchTerm = e.target.value.toLowerCase().trim();
     
     if (searchTerm === '') {
         // Reload all records if search is cleared
@@ -185,27 +164,26 @@ async function handleSearch(e) {
     }
     
     try {
-        const formData = new FormData();
-        formData.append('action', 'search_records');
-        formData.append('search', searchTerm);
-        
-        const response = await fetch('TransactionRecords.php', {
-            method: 'POST',
-            body: formData
+        // Search locally in already loaded records for faster results
+        const filtered = transactionRecords.filter(record => {
+            return (
+                (record.id && record.id.toString().toLowerCase().includes(searchTerm)) ||
+                (record.date && record.date.toLowerCase().includes(searchTerm)) ||
+                (record.type && record.type.toLowerCase().includes(searchTerm)) ||
+                (record.items && record.items.toLowerCase().includes(searchTerm)) ||
+                (record.totalPiece && record.totalPiece.toString().includes(searchTerm)) ||
+                (record.totalKilo && record.totalKilo.toString().includes(searchTerm)) ||
+                (record.totalAmount && record.totalAmount.toString().includes(searchTerm))
+            );
         });
         
-        const result = await response.json();
-        
-        if (result.success) {
-            transactionRecords = result.data;
-            renderTransactionRecords();
-            
-            if (result.data.length === 0) {
-                showNotification('No matching transactions found', 'info');
-            }
+        if (filtered.length === 0) {
+            showNotification('No matching transactions found', 'info');
         } else {
-            showNotification(result.error || 'Search failed', 'error');
+            showNotification(`Found ${filtered.length} matching transaction(s)`, 'info');
         }
+        
+        renderTransactionRecords(filtered);
     } catch (error) {
         console.error('Error searching transactions:', error);
         showNotification('Search failed', 'error');
@@ -223,44 +201,115 @@ function handleFilter() {
         'This Month'
     ];
     
-    const choice = prompt(`Filter Options:\n\n${filterOptions.map((opt, i) => `${i + 1}. ${opt}`).join('\n')}\n\nEnter your choice (1-${filterOptions.length}):`);
-    
-    if (!choice) return;
-    
-    const index = parseInt(choice) - 1;
-    
-    if (index >= 0 && index < filterOptions.length) {
-        switch(index) {
-            case 0: // All
-                renderTransactionRecords();
-                showNotification('Showing all transactions', 'info');
-                break;
-            case 1: // Received Only
-                const received = transactionRecords.filter(r => r.type === 'Received');
-                renderTransactionRecords(received);
-                showNotification(`Showing ${received.length} received transactions`, 'info');
-                break;
-            case 2: // Dispatched Only
-                const dispatched = transactionRecords.filter(r => r.type === 'Dispatched');
-                renderTransactionRecords(dispatched);
-                showNotification(`Showing ${dispatched.length} dispatched transactions`, 'info');
-                break;
-            case 3: // Today
-                const today = new Date().toISOString().split('T')[0];
-                const todayRecords = transactionRecords.filter(r => r.date === today);
-                renderTransactionRecords(todayRecords);
-                showNotification(`Showing ${todayRecords.length} transactions from today`, 'info');
-                break;
-            case 4: // This Week
-                showNotification('Week filter - Feature coming soon!', 'info');
-                break;
-            case 5: // This Month
-                showNotification('Month filter - Feature coming soon!', 'info');
-                break;
+    showFilterModal('Filter Transactions', filterOptions, (index) => {
+        currentFilter = index; // Track current filter
+        if (index === 0) { // All
+            renderTransactionRecords();
+            showNotification('Showing all transactions', 'info');
+        } else if (index === 1) { // Received Only
+            const received = transactionRecords.filter(r => r.type === 'Received');
+            renderTransactionRecords(received);
+            showNotification(`Showing ${received.length} received transactions`, 'info');
+        } else if (index === 2) { // Dispatched Only
+            const dispatched = transactionRecords.filter(r => r.type === 'Dispatched');
+            renderTransactionRecords(dispatched);
+            showNotification(`Showing ${dispatched.length} dispatched transactions`, 'info');
+        } else if (index === 3) { // Today
+            const today = new Date().toISOString().split('T')[0];
+            const todayRecords = transactionRecords.filter(r => r.date === today);
+            renderTransactionRecords(todayRecords);
+            showNotification(`Showing ${todayRecords.length} transactions from today`, 'info');
+        } else if (index === 4) { // This Week
+            const weekRecords = getTransactionsThisWeek();
+            renderTransactionRecords(weekRecords);
+            showNotification(`Showing ${weekRecords.length} transactions from this week`, 'info');
+        } else if (index === 5) { // This Month
+            const monthRecords = getTransactionsThisMonth();
+            renderTransactionRecords(monthRecords);
+            showNotification(`Showing ${monthRecords.length} transactions from this month`, 'info');
         }
-    } else {
-        showNotification('Invalid choice', 'error');
-    }
+    }, currentFilter);
+}
+
+// Get transactions from this week
+function getTransactionsThisWeek() {
+    const today = new Date();
+    const currentDay = today.getDay();
+    
+    // Calculate the start of the week (Sunday)
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDay);
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    // Calculate the end of the week (Saturday)
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    
+    const startStr = startOfWeek.toISOString().split('T')[0];
+    const endStr = endOfWeek.toISOString().split('T')[0];
+    
+    return transactionRecords.filter(r => {
+        return r.date >= startStr && r.date <= endStr;
+    });
+}
+
+// Get transactions from this month
+function getTransactionsThisMonth() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    
+    // First day of this month
+    const startOfMonth = new Date(year, month, 1);
+    const startStr = startOfMonth.toISOString().split('T')[0];
+    
+    // Last day of this month
+    const endOfMonth = new Date(year, month + 1, 0);
+    const endStr = endOfMonth.toISOString().split('T')[0];
+    
+    return transactionRecords.filter(r => {
+        return r.date >= startStr && r.date <= endStr;
+    });
+}
+
+// Generic filter modal function
+function showFilterModal(title, options, callback, currentFilterIndex = -1) {
+    const modal = document.createElement('div');
+    modal.className = 'filter-modal-overlay';
+    modal.innerHTML = `
+        <div class="filter-modal">
+            <div class="filter-modal-header">
+                <h2>${title}</h2>
+                <button class="filter-modal-close">&times;</button>
+            </div>
+            <div class="filter-modal-body">
+                <div class="filter-options">
+                    ${options.map((opt, i) => `
+                        <button class="filter-option ${i === currentFilterIndex ? 'active' : ''}" data-index="${i}">
+                            <span class="filter-number">${i + 1}</span>
+                            <span class="filter-text">${opt}</span>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    modal.querySelector('.filter-modal-close').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+    
+    modal.querySelectorAll('.filter-option').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const index = parseInt(btn.getAttribute('data-index'));
+            callback(index);
+            modal.remove();
+        });
+    });
 }
 
 // Handle add button

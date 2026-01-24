@@ -347,4 +347,6 @@ $inventoryData = getAllInventoryItems();
         </div>
     </div>
 
-<script src="Inventory.js"></script>
+<script src="Inventory.js"></script><script src="user-session.js"></script><script src="logout-dialog.js"></script>
+</body>
+</html>

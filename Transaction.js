@@ -174,13 +174,17 @@ function determineQtyType(category) {
 function updateOperationTitle() {
     const operationType = document.getElementById('operationType').value;
     const title = document.getElementById('operationTitle');
+    const priceHeader = document.querySelector('th:nth-child(6)');
     
     if (operationType === 'receiving') {
         title.textContent = 'Receiving';
+        if (priceHeader) priceHeader.textContent = 'BUYING PRICE';
     } else if (operationType === 'dispatching') {
         title.textContent = 'Dispatching';
+        if (priceHeader) priceHeader.textContent = 'SELLING PRICE';
     } else {
         title.textContent = 'Receiving / Dispatching';
+        if (priceHeader) priceHeader.textContent = 'BUYING / SELLING PRICE';
     }
 }
 
