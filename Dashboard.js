@@ -8,6 +8,29 @@ document.addEventListener('DOMContentLoaded', function() {
     updateDashboardData();
 });
 
+// Main dashboard state (comes from DB)
+const DashboardState = {
+    username: '',
+    todayRevenue: 0,
+    totalItems: 0,
+    todayTransactions: 0,
+    mostWeightedItem: 0,
+    netProfit: '₱0.00',
+
+    recentTransactions: [],
+    weekly_revenue: {
+        labels: [],
+        revenue: [],
+        expense: []
+    },
+    topItems: [],
+    inventory: {
+        total: 0,
+        items: []
+    }
+};
+
+
 // Setup event listeners for interactive elements
 function setupEventListeners() {
     // Quick Action buttons
@@ -148,56 +171,39 @@ function initializeCharts() {
     console.log('All charts initialized!');
 }
 
-// Create Revenue & Expense Trend Chart
-function createRevenueChart(labels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], 
-                           revenue = [6000, 6500, 3000, 5000, 4500, 5500, 5000], 
-                           expense = [4000, 4500, 2000, 5500, 3000, 6000, 4000]) {
-    
-    drawAreaChart(ctx, width, height, labels, revenue, expense);
+function renderStats() {
+    document.getElementById('today-revenue').textContent =
+        `₱${DashboardState.todayRevenue.toFixed(2)}`;
 
-    // Add hover functionality
-    let tooltip = document.getElementById('revenue-tooltip');
-    if (!tooltip) {
-        tooltip = document.createElement('div');
-        tooltip.id = 'revenue-tooltip';
-        tooltip.style.position = 'absolute';
-        tooltip.style.background = 'rgba(0, 0, 0, 0.8)';
-        tooltip.style.color = 'white';
-        tooltip.style.padding = '10px 15px';
-        tooltip.style.borderRadius = '8px';
-        tooltip.style.fontSize = '14px';
-        tooltip.style.pointerEvents = 'none';
-        tooltip.style.display = 'none';
-        document.body.appendChild(tooltip);
+    document.getElementById('total-items').textContent =
+        DashboardState.totalItems;
+
+    document.getElementById('today-transactions').textContent =
+        DashboardState.todayTransactions;
+
+    document.getElementById('most-weighted').textContent =
+        `${DashboardState.mostWeightedItem} kg`;
+
+    document.getElementById('net-profit').textContent =
+        DashboardState.netProfit;
+
+    if (DashboardState.username) {
+        document.getElementById('username').textContent =
+            DashboardState.username;
     }
-
-    canvas.addEventListener('mousemove', function(event) {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
-
-        const padding = {top: 20, right: 20, bottom: 40, left: 50};
-        const chartWidth = width - padding.left - padding.right;
-        const stepX = chartWidth / (labels.length - 1);
-
-        // Find the closest index
-        const index = Math.round((mouseX - padding.left) / stepX);
-        if (index >= 0 && index < labels.length) {
-            const rev = revenue[index];
-            const exp = expense[index];
-            tooltip.innerHTML = `<strong>${labels[index]}</strong>: <span style="color: #4299e1; font-weight: bold;">Revenue: </span>₱${rev.toLocaleString()}, <span style="color: #f56565; font-weight: bold;">Expense: </span>₱${exp.toLocaleString()}`;
-            tooltip.style.left = `${event.pageX + 10}px`;
-            tooltip.style.top = `${event.pageY - 10}px`;
-            tooltip.style.display = 'block';
-        } else {
-            tooltip.style.display = 'none';
-        }
-    });
-
-    canvas.addEventListener('mouseout', function() {
-        tooltip.style.display = 'none';
-    });
 }
+
+
+// Create Revenue & Expense Trend Chart
+function createRevenueChart(labels, revenue, expense) {
+    const canvas = document.getElementById('revenueChart');
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width = canvas.parentElement.offsetWidth;
+    const height = canvas.height = 300;
+
+    drawAreaChart(ctx, width, height, labels, revenue, expense);
+}
+
 
 // Update Revenue Chart
 function updateRevenueChart(labels, revenue, expense) {
@@ -206,25 +212,29 @@ function updateRevenueChart(labels, revenue, expense) {
 
 // Create Weekly Transactions Chart
 function createWeeklyChart() {
-    const canvas = document.getElementById('weeklyChart');
-    if (!canvas) {
-        console.error('Weekly chart canvas not found');
-        return;
-    }
-    
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width = canvas.parentElement.offsetWidth;
-    const height = canvas.height = 250;
-    
-    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const data = [8, 12, 16, 20, 18, 28, 24];
-    const totalTransactions = data.reduce((sum, value) => sum + value, 0);
-    const transactionElement = document.querySelector('.total-badge'); // Kukuhain niya yung may name na class na ito from html
-    if (transactionElement) {
-        transactionElement.textContent = totalTransactions.toString();
-    }
-    
-    drawBarChart(ctx, width, height, labels, data);
+    const ctx = document.getElementById('weeklyChart').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dashboardData.weekly_revenue.labels,
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: dashboardData.weekly_revenue.revenue,
+                    fill: false,
+                    tension: 0.4
+                },
+                {
+                    label: 'Expense',
+                    data: dashboardData.weekly_revenue.expense,
+                    fill: false,
+                    tension: 0.4
+                }
+            ]
+        }
+    });
+
 }
 
 // Create Net Profit Chart
@@ -321,25 +331,19 @@ function createProfitChart() {
 }
 
 // Create Inventory Pie Chart
-function createInventoryPieChart(items = [
-    {name: 'Plastic', weight: 400, color: '#A78BFA'},
-    {name: 'Metal', weight: 300, color: '#7DD3FC'},
-    {name: 'Paper', weight: 250, color: '#FDE047'},
-    {name: 'Glass', weight: 200, color: '#60A5FA'},
-    {name: 'Other', weight: 75, color: '#E8B4F5'}
-], total = 1225) {
+function createInventoryPieChart() {
     const canvas = document.getElementById('inventoryPie');
     if (!canvas) {
         console.error('Inventory pie chart canvas not found');
         return;
     }
-    
+    const items = dashboardData.inventory_weight.items;
     const ctx = canvas.getContext('2d');
     const size = 200;
     canvas.width = size;
     canvas.height = size;
     
-    const data = items.map(item => item.weight);
+    const data = items.map(item => item.percentage);
     const labels = items.map(item => item.name);
     const colors = items.map(item => item.color);
     const totalWeight = total;
@@ -716,117 +720,56 @@ function drawDonutChart(ctx, size, data, colors) {
 }
 
 // Update top items list
-function updateTopItems() {
-    const topItems = [
-        { name: 'White Paper', quantityKg: 644, pricePerKg: 10.78, icon: '🔩' },
-        { name: 'Metal', quantityKg: 500, pricePerKg: 9.42, icon: '📦' },
-        { name: 'Plastic Bottles', quantityKg: 644, pricePerKg: 7.26, icon: '🍾' },
-        { name: 'Diaryo', quantityKg: 60, pricePerKg: 3.43, icon: '📦' },
-        { name: 'Tin Cans', quantityKg: 644, pricePerKg: 4.51, icon: '🍾' }
-    ];
+function renderTopItems() {
+    const list = document.querySelector('.items-list');
+    list.innerHTML = '';
 
-    // Calculate total sales and sort by total sales descending
-    topItems.forEach(item => {
-        item.totalSales = item.pricePerKg * item.quantityKg;
-    });
-    topItems.sort((a, b) => b.totalSales - a.totalSales);
-
-    const itemsList = document.querySelector('.items-list');
-    itemsList.innerHTML = '';
-
-    topItems.forEach(item => {
-        const itemRow = document.createElement('div');
-        itemRow.className = 'item-row';
-        itemRow.innerHTML = `
+    DashboardState.topItems.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'item-row';
+        row.innerHTML = `
             <div class="item-info">
                 <span class="item-icon">${item.icon}</span>
                 <div>
                     <p class="item-name">${item.name}</p>
-                    <p class="item-detail">${item.quantityKg} kg </p>
+                    <p class="item-detail">${item.quantity}</p>
                 </div>
             </div>
-            <span class="item-price">₱${item.totalSales.toLocaleString()}</span>
+            <span class="item-price">${item.price}</span>
         `;
-        itemsList.appendChild(itemRow);
+        list.appendChild(row);
     });
 }
+
 
 // Update dashboard data (fetch from backend)
 function updateDashboardData() {
     fetch('Dashboard.php?ajax=1')
-        .then(response => response.json())
+        .then(res => res.json())
         .then(data => {
-            // Update stats
-            document.getElementById('today-revenue').textContent = '₱' + data.today_revenue.toFixed(2);
-            document.getElementById('total-items').textContent = data.total_items;
-            document.getElementById('today-transactions').textContent = data.today_transactions;
-            document.getElementById('most-weighted').textContent = data.most_weighted_item + ' kg';
-            document.getElementById('net-profit').textContent = data.net_profit;
 
-            // Update username (if available)
-            if (data.username) {
-                document.getElementById('username').textContent = data.username;
-            }
+            // === MAP DB DATA TO MAIN STATE ===
+            DashboardState.username = data.username;
+            DashboardState.todayRevenue = data.today_revenue;
+            DashboardState.totalItems = data.total_items;
+            DashboardState.todayTransactions = data.today_transactions;
+            DashboardState.mostWeightedItem = data.most_weighted_item;
+            DashboardState.netProfit = data.net_profit;
 
-            // Update recent transactions
-            const transactionsContainer = document.getElementById('recent-transactions');
-            transactionsContainer.innerHTML = '';
-            data.recent_transactions.forEach(transaction => {
-                const item = document.createElement('div');
-                item.className = 'transaction-item';
-                item.innerHTML = `
-                    <div class="transaction-icon">${transaction.icon}</div>
-                    <div class="transaction-info">
-                        <p class="transaction-title">${transaction.item_name}</p>
-                        <p class="transaction-detail">${transaction.quantity}</p>
-                    </div>
-                    <span class="transaction-time">${transaction.time_ago}</span>
-                `;
-                transactionsContainer.appendChild(item);
-            });
+            DashboardState.recentTransactions = data.recent_transactions;
+            DashboardState.weekly_revenue = data.weekly_revenue;
+            DashboardState.topItems = data.top_items;
+            DashboardState.inventory = data.inventory_weight;
 
-            // Update top items
-            const itemsContainer = document.getElementById('top-items');
-            itemsContainer.innerHTML = '';
-            data.top_items.forEach(item => {
-                const row = document.createElement('div');
-                row.className = 'item-row';
-                row.innerHTML = `
-                    <div class="item-info">
-                        <span class="item-icon">${item.icon}</span>
-                        <div>
-                            <p class="item-name">${item.name}</p>
-                            <p class="item-detail">${item.quantity}</p>
-                        </div>
-                    </div>
-                    <span class="item-price">${item.price}</span>
-                `;
-                itemsContainer.appendChild(row);
-            });
-
-            // Update inventory
-            document.getElementById('inventory-total').textContent = data.inventory_weight.total + ' kg';
-            const legendContainer = document.getElementById('inventory-legend');
-            legendContainer.innerHTML = '';
-            data.inventory_weight.items.forEach(item => {
-                const legendItem = document.createElement('div');
-                legendItem.className = 'legend-item';
-                legendItem.innerHTML = `
-                    <span class="legend-color" style="background: ${item.color};"></span>
-                    <span>${item.name}</span>
-                `;
-                legendContainer.appendChild(legendItem);
-            });
-
-            // Update charts
-            updateCharts(data);
-
-            console.log('Dashboard data updated:', data);
+            // === UPDATE UI ===
+            renderStats();
+            renderRecentTransactions();
+            renderTopItems();
+            renderCharts();
         })
-        .catch(error => {
-            console.error('Error fetching dashboard data:', error);
-        });
+        .catch(err => console.error('Dashboard fetch error:', err));
 }
+
 
 // Update charts with fetched data
 function updateCharts(data) {
@@ -841,6 +784,44 @@ function updateCharts(data) {
     }));
     updateInventoryPieChart(inventoryItems, data.inventory_weight.total);
 }
+
+function renderCharts() {
+    // Revenue
+    createRevenueChart(
+        DashboardState.weekly_revenue.labels,
+        DashboardState.weekly_revenue.revenue,
+        DashboardState.weekly_revenue.expense
+    );
+
+    // Inventory
+    const items = DashboardState.inventory.items.map(i => ({
+        name: i.name,
+        weight: (i.percentage / 100) * DashboardState.inventory.total,
+        color: i.color
+    }));
+
+    createInventoryPieChart(items, DashboardState.inventory.total);
+}
+
+function renderRecentTransactions() {
+    const container = document.getElementById('recent-transactions');
+    container.innerHTML = '';
+
+    DashboardState.recentTransactions.forEach(tx => {
+        const div = document.createElement('div');
+        div.className = 'transaction-item';
+        div.innerHTML = `
+            <div class="transaction-icon">${tx.icon}</div>
+            <div class="transaction-info">
+                <p class="transaction-title">${tx.item_name}</p>
+                <p class="transaction-detail">${tx.quantity}</p>
+            </div>
+            <span class="transaction-time">${tx.time_ago}</span>
+        `;
+        container.appendChild(div);
+    });
+}
+
 
 // Refresh data every 5 minutes
 setInterval(updateDashboardData, 300000);

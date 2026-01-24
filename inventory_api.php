@@ -36,7 +36,7 @@ function getOrCreateCategory($categoryName) {
     global $conn;
 
     // First, try to find existing category (case-insensitive)
-    $sql = "SELECT CategoryID FROM Categories WHERE LOWER(Category_Name) = LOWER(?)";
+    $sql = "SELECT CategoryID FROM Category WHERE LOWER(Category_Name) = LOWER()";
     $stmt = sqlsrv_query($conn, $sql, [$categoryName]);
 
     if ($stmt && $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
@@ -44,7 +44,7 @@ function getOrCreateCategory($categoryName) {
     }
 
     // If not found, insert new category and get the ID
-    $insertSql = "INSERT INTO Categories (Category_Name) OUTPUT INSERTED.CategoryID VALUES (?)";
+    $insertSql = "INSERT INTO Category (Category_Name) OUTPUT INSERTED.CategoryID VALUES (?)";
     $insertStmt = sqlsrv_query($conn, $insertSql, [$categoryName]);
 
     if ($insertStmt && $row = sqlsrv_fetch_array($insertStmt, SQLSRV_FETCH_ASSOC)) {
@@ -57,9 +57,9 @@ function getOrCreateCategory($categoryName) {
 function getAllInventoryItems() {
     global $conn;
 
-    $sql = "SELECT i.ItemID, i.Item_Name, i.CategoryID, c.Category_Name, i.Item_Quantity, i.Item_Weight, i.Buying_Price, i.Selling_Price, i.qty_type 
+    $sql = "SELECT i.ItemID, i.Item_Name, i.CategoryID, c.Category_Name, i.Item_Quantity, i.Item_Weight, i.Buying_Price, i.Selling_Price 
             FROM Inventory i 
-            LEFT JOIN Categories c ON i.CategoryID = c.CategoryID 
+            LEFT JOIN Category c ON i.CategoryID = c.CategoryID 
             ORDER BY i.Item_Name";
     $stmt = sqlsrv_query($conn, $sql);
 
@@ -69,12 +69,14 @@ function getAllInventoryItems() {
 
     $data = [];
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        // Calculate qty_type based on Item_Weight
+        $qty_type = $row['Item_Weight'] > 0 ? 'by kilo' : 'by piece';
         $data[] = [
             'id' => $row['ItemID'],
             'name' => $row['Item_Name'],
             'category_id' => $row['CategoryID'],
             'category' => $row['Category_Name'] ?? 'No Category',
-            'qty_type' => $row['qty_type'] ?? 'by kilo',
+            'qty_type' => $qty_type,
             'quantity' => $row['Item_Quantity'],
             'weight' => $row['Item_Weight'],
             'buying_price' => $row['Buying_Price'],
@@ -101,15 +103,16 @@ function addInventoryItem($data) {
         ];
     }
 
-    $sql = "EXEC sp_AddInventoryItem ?, ?, ?, ?, ?, ?, ?";
+    // Insert directly instead of using stored procedure
+    $sql = "INSERT INTO Inventory (Item_Name, CategoryID, Item_Quantity, Item_Weight, Buying_Price, Selling_Price) 
+            VALUES (?, ?, ?, ?, ?, ?)";
     $params = [
         $data['name'],
         $categoryId,
         $data['quantity'],
         $weight,
         $data['buying_price'],
-        $data['selling_price'],
-        $data['qty_type']
+        $data['selling_price']
     ];
 
     $stmt = sqlsrv_query($conn, $sql, $params);
@@ -118,7 +121,7 @@ function addInventoryItem($data) {
         $error = sqlsrv_errors()[0];
         return [
             'success' => false,
-            'message' => $error['message']
+            'message' => 'Error: ' . $error['message']
         ];
     }
 
@@ -140,22 +143,23 @@ function updateInventoryItem($data) {
         ];
     }
 
-    $sql = "EXEC sp_UpdateInventoryItem ?, ?, ?, ?, ?, ?, ?, ?";
+    // Update directly instead of using stored procedure
+    $sql = "UPDATE Inventory SET Item_Name = ?, CategoryID = ?, Item_Quantity = ?, Item_Weight = ?, Buying_Price = ?, Selling_Price = ? WHERE ItemID = ?";
     $params = [
-        $data['id'],
         $data['name'],
         $categoryId,
         $data['quantity'],
         $weight,
         $data['buying_price'],
         $data['selling_price'],
-        $data['qty_type']
+        $data['id']
     ];
 
     $stmt = sqlsrv_query($conn, $sql, $params);
 
     if ($stmt === false) {
-        return ['success' => false, 'error' => sqlsrv_errors()];
+        $error = sqlsrv_errors()[0];
+        return ['success' => false, 'message' => 'Error: ' . $error['message']];
     }
 
     return ['success' => true, 'message' => 'Item updated successfully'];
@@ -164,11 +168,12 @@ function updateInventoryItem($data) {
 function deleteInventoryItem($id) {
     global $conn;
 
-    $sql = "EXEC sp_DeleteInventoryItem ?";
+    $sql = "DELETE FROM Inventory WHERE ItemID = ?";
     $stmt = sqlsrv_query($conn, $sql, [$id]);
 
     if ($stmt === false) {
-        return ['success' => false, 'error' => sqlsrv_errors()];
+        $error = sqlsrv_errors()[0];
+        return ['success' => false, 'message' => 'Error: ' . $error['message']];
     }
 
     return ['success' => true, 'message' => 'Item deleted successfully'];

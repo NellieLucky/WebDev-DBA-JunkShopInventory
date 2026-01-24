@@ -48,9 +48,9 @@ function getInventoryForTransaction() {
     }
 
     // Removed caching to ensure fresh data and faster response
-    $sql = "SELECT i.ItemID, i.Item_Name, c.Category_Name, i.Item_Quantity, i.Buying_Price, i.Selling_Price, i.qty_type
+    $sql = "SELECT i.ItemID, i.Item_Name, c.Category_Name, i.Item_Quantity, i.Buying_Price, i.Selling_Price, i.Item_Weight
             FROM Inventory i
-            LEFT JOIN Categories c ON i.CategoryID = c.CategoryID
+            LEFT JOIN Category c ON i.CategoryID = c.CategoryID
             ORDER BY i.Item_Name";
 
     $stmt = sqlsrv_query($conn, $sql);
@@ -66,6 +66,9 @@ function getInventoryForTransaction() {
 
     $items = [];
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        // Calculate qty_type based on Item_Weight (same as other parts of app)
+        $qty_type = $row['Item_Weight'] > 0 ? 'by kilo' : 'by piece';
+        
         $items[] = [
             'id' => $row['ItemID'],
             'name' => $row['Item_Name'],
@@ -73,7 +76,7 @@ function getInventoryForTransaction() {
             'quantity' => $row['Item_Quantity'],
             'buying_price' => $row['Buying_Price'],
             'selling_price' => $row['Selling_Price'],
-            'qty_type' => $row['qty_type'] ?? 'by piece'
+            'qty_type' => $qty_type
         ];
     }
 
@@ -234,7 +237,7 @@ function addTransactionItem($data) {
         return ['success' => false, 'error' => 'Failed to update inventory stock'];
     }
 
-    // Insert into Transaction_Items
+    // Insert into TransactionItems
     $insertSql = "INSERT INTO Transaction_Items (TransactionID, Item_ID, Quantity, PriceAtTime)
                   VALUES (?, ?, ?, ?)";
     $insertStmt = sqlsrv_query($conn, $insertSql, [$transactionId, $itemId, $quantity, $price]);

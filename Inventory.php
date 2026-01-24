@@ -44,12 +44,18 @@ if (isset($_POST['action'])) {
     }
     exit();
 }
-
 function getInventoryStats() {
     global $conn;
 
-    $stmt = sqlsrv_query($conn, "EXEC sp_GetInventoryStats");
-    return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    $stmt = sqlsrv_query($conn, "EXEC sp_GetTop5Sales");
+    $result = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    
+    // Return with null coalescing to handle missing fields
+    return [
+        'TotalItems' => $result['TotalItems'] ?? 0,
+        'TotalWeight' => $result['TotalWeight'] ?? 0,
+        'TotalSellingPrice' => $result['TotalSellingPrice'] ?? 0
+    ];
 }
 
 $stats = getInventoryStats();
@@ -62,7 +68,7 @@ function getCategories() {
     }
 
     // Use direct query to get categories
-    $sql = "SELECT CategoryID, Category_Name FROM Categories ORDER BY Category_Name";
+    $sql = "SELECT CategoryID, Category_Name FROM Category ORDER BY Category_Name";
     $stmt = sqlsrv_query($conn, $sql);
 
     if ($stmt === false) {
@@ -88,7 +94,7 @@ function getAllInventoryItems() {
     // Try direct query first
     $sql = "SELECT i.ItemID, i.Item_Name, i.CategoryID, c.Category_Name, i.Item_Quantity, i.Item_Weight, i.Buying_Price, i.Selling_Price 
             FROM Inventory i 
-            LEFT JOIN Categories c ON i.CategoryID = c.CategoryID 
+            LEFT JOIN Category c ON i.CategoryID = c.CategoryID 
             ORDER BY i.Item_Name";
     
     $stmt = sqlsrv_query($conn, $sql);

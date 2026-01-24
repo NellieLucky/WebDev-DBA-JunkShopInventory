@@ -62,7 +62,7 @@
     <main class="main-content">
         <!-- Header -->
         <header class="header">
-            <h1>Welcome Back, <span class="username" id="username">ExoticNellie69</span></h1>
+            <h1>Welcome Back, <span class="username" id="username"></span></h1>
             <p class="subtitle">Here's what's happening in your junk shop today</p>
         </header>
 
@@ -72,7 +72,7 @@
                 <div class="stat-header">
                     <div>
                         <p class="stat-label">Today's Revenue</p>
-                        <h2 class="stat-value" id="today-revenue">₱69.00</h2>
+                        <h2 class="stat-value" id="today-revenue">—</h2>
                         <p class="stat-sub">Total Revenue</p>
                     </div>
                     <div class="stat-icon">💰</div>
@@ -83,7 +83,7 @@
                 <div class="stat-header">
                     <div>
                         <p class="stat-label">Total No. of Items</p>
-                        <h2 class="stat-value" id="total-items">89</h2>
+                        <h2 class="stat-value" id="total-items">—</h2>
                         <p class="stat-sub">In Stock</p>
                     </div>
                     <div class="stat-icon">📦</div>
@@ -94,7 +94,7 @@
                 <div class="stat-header">
                     <div>
                         <p class="stat-label">Transactions Today</p>
-                        <h2 class="stat-value" id="today-transactions">2</h2>
+                        <h2 class="stat-value" id="today-transactions">—</h2>
                         <p class="stat-sub">Total Transactions</p>
                     </div>
                     <div class="stat-icon">💳</div>
@@ -105,7 +105,7 @@
                 <div class="stat-header">
                     <div>
                         <p class="stat-label">Most Weighted Item</p>
-                        <h2 class="stat-value" id="most-weighted">65 kg</h2>
+                        <h2 class="stat-value" id="most-weighted">—</h2>
                         <p class="stat-sub">In Stock</p>
                     </div>
                     <div class="stat-icon">⚖️</div>
@@ -159,30 +159,7 @@
                     <button class="btn-view">View All</button>
                 </div>
                 <div class="transaction-list" id="recent-transactions">
-                    <div class="transaction-item">
-                        <div class="transaction-icon">📦</div>
-                        <div class="transaction-info">
-                            <p class="transaction-title">Bought Item</p>
-                            <p class="transaction-detail">Tin Cans • 10 pcs</p>
-                        </div>
-                        <span class="transaction-time">5 minutes ago</span>
-                    </div>
-                    <div class="transaction-item">
-                        <div class="transaction-icon">💰</div>
-                        <div class="transaction-info">
-                            <p class="transaction-title">Sold Item</p>
-                            <p class="transaction-detail">Paper Boxes • 23 kg</p>
-                        </div>
-                        <span class="transaction-time">5 minutes ago</span>
-                    </div>
-                    <div class="transaction-item">
-                        <div class="transaction-icon">👤</div>
-                        <div class="transaction-info">
-                            <p class="transaction-title">Recent Customer</p>
-                            <p class="transaction-detail">Charlene Caramoan</p>
-                        </div>
-                        <span class="transaction-time">5 minutes ago</span>
-                    </div>
+                    <!-- Transactions will be dynamically inserted here -->
                 </div>
             </div>
 
@@ -190,7 +167,7 @@
             <div class="chart-card">
                 <div class="card-header">
                     <h3>Weekly Transactions</h3>
-                    <span class="total-badge">45 Total</span>
+                    <span class="total-badge" id="weekly-total">—</span>
                 </div>
                 <div class="chart-container">
                     <canvas id="weeklyChart"></canvas>
@@ -221,7 +198,7 @@
             <div class="profit-card">
                 <div class="card-header">
                     <h3>Net Profit</h3>
-                    <h2 class="profit-value" id="net-profit">₱67,676,767.00</h2> <!--Initial text value lang ito-->
+                    <h2 class="profit-value" id="net-profit">—</h2>
                 </div>
                 <div class="chart-container large">
                     <canvas id="profitChart"></canvas>
@@ -237,56 +214,7 @@
                         <button class="btn-view">View All</button>
                     </div>
                     <div class="items-list" id="top-items">
-                        <div class="item-row">
-                            <div class="item-info">
-                                <span class="item-icon">🥫</span>
-                                <div>
-                                    <p class="item-name">Tin Cans</p>
-                                    <p class="item-detail">438 pcs</p>
-                                </div>
-                            </div>
-                            <span class="item-price">₱6,942.00</span>
-                        </div>
-                        <div class="item-row">
-                            <div class="item-info">
-                                <span class="item-icon">📄</span>
-                                <div>
-                                    <p class="item-name">White Paper</p>
-                                    <p class="item-detail">294 kg</p>
-                                </div>
-                            </div>
-                            <span class="item-price">₱4,708.00</span>
-                        </div>
-                        <div class="item-row">
-                            <div class="item-info">
-                                <span class="item-icon">🔩</span>
-                                <div>
-                                    <p class="item-name">Metal</p>
-                                    <p class="item-detail">203 kg</p>
-                                </div>
-                            </div>
-                            <span class="item-price">₱4,671.00</span>
-                        </div>
-                        <div class="item-row">
-                            <div class="item-info">
-                                <span class="item-icon">📦</span>
-                                <div>
-                                    <p class="item-name">Cardboard</p>
-                                    <p class="item-detail">171 kg</p>
-                                </div>
-                            </div>
-                            <span class="item-price">₱2,056.00</span>
-                        </div>
-                        <div class="item-row">
-                            <div class="item-info">
-                                <span class="item-icon">🍾</span>
-                                <div>
-                                    <p class="item-name">Plastic Bottles</p>
-                                    <p class="item-detail">644 pcs</p>
-                                </div>
-                            </div>
-                            <span class="item-price">₱2,903.00</span>
-                        </div>
+                        <!-- Top items will be dynamically inserted here -->
                     </div>
                 </div>
 
@@ -301,30 +229,11 @@
                             <canvas id="inventoryPie"></canvas>
                             <div class="pie-center">
                                 <p class="pie-label">Total:</p>
-                                <p class="pie-value" id="inventory-total">1,325 kg</p>
+                                <p class="pie-value" id="inventory-total">—</p>
                             </div>
                         </div>
                         <div class="inventory-legend" id="inventory-legend">
-                            <div class="legend-item">
-                                <span class="legend-color" style="background: #E8B4F5;"></span>
-                                <span>White Paper</span>
-                            </div>
-                            <div class="legend-item">
-                                <span class="legend-color" style="background: #7DD3FC;"></span>
-                                <span>Cardboard Box</span>
-                            </div>
-                            <div class="legend-item">
-                                <span class="legend-color" style="background: #FDE047;"></span>
-                                <span>Tin Cans</span>
-                            </div>
-                            <div class="legend-item">
-                                <span class="legend-color" style="background: #60A5FA;"></span>
-                                <span>Plastic Bottles</span>
-                            </div>
-                            <div class="legend-item">
-                                <span class="legend-color" style="background: #A78BFA;"></span>
-                                <span>Metals</span>
-                            </div>
+                            <!-- Legend items will be dynamically inserted here -->
                         </div>
                     </div>
                 </div>

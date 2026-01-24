@@ -5,16 +5,26 @@ let currentEditId = null;
 
 // Fetch inventory from PHP and update the table
 function loadInventoryFromPHP() {
-    console.log('loadInventoryFromPHP() CALLED');
+    console.log('🔄 loadInventoryFromPHP() CALLED');
 
     fetch('./inventory_api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ action: 'get_all' })
     })
-    .then(res => res.json())
+    .then(res => {
+        console.log('📡 API Response Status:', res.status);
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+    })
     .then(data => {
+        console.log('📦 Data received from API:', data);
+        
         if (data.success && Array.isArray(data.data)) {
+            console.log(`✓ Successfully loaded ${data.data.length} items`);
+            
             // Map PHP response to JS format
             inventoryItems = data.data.map(item => ({
                 id: item.id,
@@ -29,13 +39,18 @@ function loadInventoryFromPHP() {
             }));
             renderInventoryTable(inventoryItems);
             updateStats();
+        } else if (data.error) {
+            console.error('❌ API Error:', data.error);
+            showNotification('Error loading inventory: ' + JSON.stringify(data.error), 'error');
+            renderInventoryTable([]);
         } else {
-            console.error('Failed to load inventory:', data);
+            console.error('❌ Failed to load inventory - Empty response:', data);
             renderInventoryTable([]);
         }
     })
     .catch(err => {
-        console.error('Error fetching inventory:', err);
+        console.error('❌ Network/Parse Error fetching inventory:', err);
+        showNotification('Failed to connect to inventory API. Check console for details.', 'error');
         renderInventoryTable([]);
     });
 }

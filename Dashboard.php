@@ -4,11 +4,37 @@
 
 // Start session for user management
 session_start();
+require_once 'db_connect.php';
+
 
 // TODO: Uncomment when database is ready
-// include_once 'config/database.php';
+//include_once 'config/db_connect.php';
 // include_once 'includes/functions.php';
 
+if (isset($_GET['ajax'])) {
+    header('Content-Type: application/json');
+
+    echo json_encode([
+        "username" => "TestUser",
+        "today_revenue" => 0,
+        "total_items" => 0,
+        "today_transactions" => 0,
+        "most_weighted_item" => 0,
+        "net_profit" => "₱0.00",
+        "recent_transactions" => [],
+        "weekly_revenue" => [
+            "labels" => [],
+            "revenue" => [],
+            "expense" => []
+        ],
+        "top_items" => [],
+        "inventory_weight" => [
+            "total" => 0,
+            "items" => []
+        ]
+    ]);
+    exit;
+}
 // Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     header("Location: Login.php");
@@ -271,12 +297,6 @@ $dashboard_data = [
     'net_profit' => getNetProfit()
 ];
 
-// If this is an AJAX request, return JSON
-if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
-    header('Content-Type: application/json');
-    echo json_encode($dashboard_data);
-    exit();
-}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -545,7 +565,6 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
         </section>
     </main>
 
-    <script src="Dashboard.js"></script>
     <script>
         // Pass PHP data to JavaScript
         const dashboardData = <?php echo json_encode($dashboard_data); ?>;
@@ -743,5 +762,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
             border: 1px solid #f5c6cb;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="Dashboard.js"></script>
 </body>
 </html>

@@ -122,7 +122,7 @@ function getTransactionDetail($transactionId) {
                     (ti.Quantity * ti.PriceAtTime) as LineTotal
                 FROM Transaction_Items ti
                 JOIN Inventory i ON ti.Item_ID = i.ItemID
-                LEFT JOIN Categories cat ON i.CategoryID = cat.CategoryID
+                LEFT JOIN Category cat ON i.CategoryID = cat.CategoryID
                 WHERE ti.TransactionID = ?";
 
     $itemsStmt = sqlsrv_query($conn, $itemsSql, [$transactionId]);

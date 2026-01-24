@@ -15,7 +15,7 @@ function getInventory() {
     
     $sql = "SELECT i.ItemID, i.Item_Name, c.Category_Name, i.Item_Quantity, i.Item_Weight, i.Buying_Price, i.Selling_Price 
             FROM Inventory i 
-            LEFT JOIN Categories c ON i.CategoryID = c.CategoryID 
+            LEFT JOIN Category c ON i.CategoryID = c.CategoryID 
             ORDER BY i.Item_Name";
     
     $stmt = sqlsrv_query($conn, $sql);
