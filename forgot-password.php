@@ -36,18 +36,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please enter a valid email address.';
     } else {
         // Check if email exists in Management table
-        $sql = "{call sp_CheckUserEmail(?, ?)}";
-        $exists = false;
-        $params = [$email, [&$exists, SQLSRV_PARAM_OUT, SQLSRV_PHPTYPE_INT]];
+        $sql = "SELECT ManagementID FROM Management WHERE Email = ?";
+        $params = [$email];
         $stmt = sqlsrv_prepare($conn, $sql, $params);
 
         if ($stmt && sqlsrv_execute($stmt)) {
-            if ($exists) {
+            $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+            
+            if ($row) {
                 // Generate 6-digit OTP
                 $otp = str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
 
                 // Insert into PasswordResetTokens table
-                $insertSql = "{call sp_InsertPasswordResetToken(?, ?)}";
+                $insertSql = "INSERT INTO PasswordResetTokens (Email, OTP, CreatedAt, ExpiresAt, IsUsed) VALUES (?, ?, GETDATE(), DATEADD(MINUTE, 5, GETDATE()), 0)";
                 $insertParams = [$email, $otp];
                 $insertStmt = sqlsrv_prepare($conn, $insertSql, $insertParams);
 

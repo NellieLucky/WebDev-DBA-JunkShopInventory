@@ -290,7 +290,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="logo">
-            <img src="logo.png" alt="ScrapTrack Logo" class="logo-icon">
+            <img src="Logos-Icons/3.png" alt="ScrapTrack Logo" class="logo-icon">
             <span class="logo-text">ScrapTrack</span>
         </div>
 
@@ -333,7 +333,7 @@ if (isset($_GET['ajax']) && $_GET['ajax'] == '1') {
         </nav>
 
         <div class="sidebar-footer">
-            <img src="logo.png" alt="ScrapTrack" class="footer-logo">
+            <img src="Logos-Icons/3.png" alt="ScrapTrack" class="footer-logo">
             <span class="footer-text">ScrapTrack</span>
         </div>
     </aside>

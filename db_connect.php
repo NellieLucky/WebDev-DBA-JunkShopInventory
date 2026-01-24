@@ -10,9 +10,14 @@ $connectionOptions = [
 $conn = sqlsrv_connect($serverName, $connectionOptions);
 
 if ($conn === false) {
-    // Log detailed errors for troubleshooting, show a generic message to users
-    error_log("SQLSRV connect failed: " . print_r(sqlsrv_errors(), true));
-    die("Database connection failed. Please check server and logs.");
+    $errors = sqlsrv_errors();
+    echo "<pre>";
+    echo "Connection failed!\n\n";
+    echo "Server: localhost\\SQLEXPRESS\n";
+    echo "Database: JSDatabase\n\n";
+    print_r($errors);
+    echo "</pre>";
+    die();
 }
 
 function db_connected() {

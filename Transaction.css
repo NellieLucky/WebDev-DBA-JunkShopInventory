@@ -212,6 +212,8 @@ body {
     padding: 30px;
     border-radius: 12px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    overflow-x: auto;
 }
 
 .details-header {
@@ -257,10 +259,13 @@ body {
 
 /* Summary Cards */
 .summary-cards {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
     gap: 20px;
     margin-bottom: 30px;
+    width: 100%;
+    grid-auto-flow: row;
+    grid-auto-rows: auto;
 }
 
 .summary-card {
@@ -268,6 +273,9 @@ body {
     border: 2px solid #e2e8f0;
     padding: 20px;
     border-radius: 8px;
+    min-width: 0;
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
 .summary-label {
@@ -282,6 +290,7 @@ body {
     font-weight: 700;
     color: #1a202c;
 }
+
 
 /* Table */
 .table-container {
@@ -622,12 +631,34 @@ body {
         grid-template-columns: 1fr;
     }
     
+    /* Keep summary cards in one row even on smaller screens - reduce gap but keep 3 columns */
     .summary-cards {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 12px;
     }
     
     .invoice-details {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Ensure summary cards always stay in one row on all screen sizes */
+@media (max-width: 768px) {
+    .summary-cards {
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 8px;
+    }
+    
+    .summary-card {
+        padding: 16px;
+    }
+    
+    .summary-label {
+        font-size: 12px;
+    }
+    
+    .summary-value {
+        font-size: 24px;
     }
 }
 

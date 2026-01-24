@@ -57,7 +57,7 @@ function getOrCreateCategory($categoryName) {
 function getAllInventoryItems() {
     global $conn;
 
-    $sql = "SELECT i.ItemID, i.Item_Name, i.CategoryID, c.Category_Name, i.Item_Quantity, i.Item_Weight, i.Buying_Price, i.Selling_Price 
+    $sql = "SELECT i.ItemID, i.Item_Name, i.CategoryID, c.Category_Name, i.Item_Quantity, i.Item_Weight, i.Buying_Price, i.Selling_Price, i.qty_type 
             FROM Inventory i 
             LEFT JOIN Categories c ON i.CategoryID = c.CategoryID 
             ORDER BY i.Item_Name";
@@ -69,13 +69,12 @@ function getAllInventoryItems() {
 
     $data = [];
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-        $qty_type = $row['Item_Weight'] > 0 ? 'Kilo' : 'Piraso';
         $data[] = [
             'id' => $row['ItemID'],
             'name' => $row['Item_Name'],
             'category_id' => $row['CategoryID'],
             'category' => $row['Category_Name'] ?? 'No Category',
-            'qty_type' => $qty_type,
+            'qty_type' => $row['qty_type'] ?? 'by kilo',
             'quantity' => $row['Item_Quantity'],
             'weight' => $row['Item_Weight'],
             'buying_price' => $row['Buying_Price'],
@@ -90,27 +89,27 @@ function addInventoryItem($data) {
     global $conn;
 
     // Decide weight based on quantity type
-    $weight = ($data['qty_type'] === 'Kilo') ? $data['quantity'] : 0;
+    $weight = ($data['qty_type'] === 'by kilo' || $data['qty_type'] === 'Kilo') ? $data['quantity'] : 0;
 
-    // Handle category: find existing or create new
-    $categoryName = trim($data['category_name']);
-    $categoryId = getOrCreateCategory($categoryName);
+    // Use category_id directly from form
+    $categoryId = isset($data['category_id']) ? intval($data['category_id']) : null;
 
     if (!$categoryId) {
         return [
             'success' => false,
-            'message' => 'Failed to process category'
+            'message' => 'Please select a category'
         ];
     }
 
-    $sql = "EXEC sp_AddInventoryItem ?, ?, ?, ?, ?, ?";
+    $sql = "EXEC sp_AddInventoryItem ?, ?, ?, ?, ?, ?, ?";
     $params = [
         $data['name'],
         $categoryId,
         $data['quantity'],
         $weight,
         $data['buying_price'],
-        $data['selling_price']
+        $data['selling_price'],
+        $data['qty_type']
     ];
 
     $stmt = sqlsrv_query($conn, $sql, $params);
@@ -128,26 +127,29 @@ function addInventoryItem($data) {
 function updateInventoryItem($data) {
     global $conn;
 
-    // Handle category: find existing or create new
-    $categoryName = trim($data['category_name']);
-    $categoryId = getOrCreateCategory($categoryName);
+    // Decide weight based on quantity type
+    $weight = ($data['qty_type'] === 'by kilo' || $data['qty_type'] === 'Kilo') ? $data['quantity'] : 0;
+
+    // Use category_id directly from form
+    $categoryId = isset($data['category_id']) ? intval($data['category_id']) : null;
 
     if (!$categoryId) {
         return [
             'success' => false,
-            'message' => 'Failed to process category'
+            'message' => 'Please select a category'
         ];
     }
 
-    $sql = "EXEC sp_UpdateInventoryItem ?, ?, ?, ?, ?, ?, ?";
+    $sql = "EXEC sp_UpdateInventoryItem ?, ?, ?, ?, ?, ?, ?, ?";
     $params = [
         $data['id'],
         $data['name'],
         $categoryId,
         $data['quantity'],
-        $data['weight'],
+        $weight,
         $data['buying_price'],
-        $data['selling_price']
+        $data['selling_price'],
+        $data['qty_type']
     ];
 
     $stmt = sqlsrv_query($conn, $sql, $params);

@@ -129,14 +129,22 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
             <!-- Summary Cards -->
             <div class="summary-cards">
                 <div class="summary-card">
-                    <p class="summary-label">Total No. of Items</p>
-                    <h2 class="summary-value" id="totalItems">0</h2>
+                    <p class="summary-label">Total No. of Items (By Piece)</p>
+                    <h2 class="summary-value" id="totalPieceItems">0</h2>
                 </div>
+
+                <div class="summary-card">
+                    <p class="summary-label">Total No. of Items (By Weight)</p>
+                    <h2 class="summary-value" id="totalWeightItems">0</h2>
+                </div>
+
                 <div class="summary-card">
                     <p class="summary-label">Total Value</p>
                     <h2 class="summary-value" id="totalValue">₱0.00</h2>
                 </div>
             </div>
+
+            
 
             <!-- Transaction Table -->
             <div class="table-container">
@@ -203,7 +211,7 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
                     <thead>
                         <tr>
                             <th>ITEM</th>
-                            <th>BUYING PRICE</th>
+                            <th id="invoicePriceHeader">PRICE</th>
                             <th>QUANTITY</th>
                             <th>AMOUNT</th>
                         </tr>
@@ -230,6 +238,6 @@ $user_id = isset($_SESSION['user_id']) ? $_SESSION['user_id'] : 1;
         </div>
     </div>
 
-    <script src="Transaction.js"></script>
+    <script src="Transaction.js?v=<?php echo time(); ?>"></script>
 </body>
 </html>

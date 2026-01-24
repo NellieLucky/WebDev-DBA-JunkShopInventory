@@ -23,23 +23,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Password must be at least 8 characters long.';
     } else {
         // Check if OTP is valid and not expired
-        $sql = "{call sp_ValidateOTP(?, ?, ?, ?)}";
-        $tokenID = 0;
-        $isValid = false;
-        $params = [$email, $otp, [&$tokenID, SQLSRV_PARAM_OUT, SQLSRV_PHPTYPE_INT], [&$isValid, SQLSRV_PARAM_OUT, SQLSRV_PHPTYPE_INT]];
+        $sql = "SELECT ResetID FROM PasswordResetTokens WHERE Email = ? AND OTP = ? AND IsUsed = 0 AND ExpiresAt > GETDATE()";
+        $params = [$email, $otp];
         $stmt = sqlsrv_prepare($conn, $sql, $params);
 
         if ($stmt && sqlsrv_execute($stmt)) {
-            if ($isValid) {
+            $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+            
+            if ($row) {
+                $tokenID = $row['ResetID'];
                 // OTP is valid, update password
-                $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
-                $updateSql = "{call sp_UpdateUserPassword(?, ?)}";
-                $updateParams = [$email, $passwordHash];
+                $passwordHash = password_hash($newPassword, PASSWORD_BCRYPT);
+                $updateSql = "UPDATE Management SET PasswordHash = ? WHERE Email = ?";
+                $updateParams = [$passwordHash, $email];
                 $updateStmt = sqlsrv_prepare($conn, $updateSql, $updateParams);
 
                 if ($updateStmt && sqlsrv_execute($updateStmt)) {
                     // Mark token as used
-                    $markUsedSql = "{call sp_MarkTokenUsed(?)}";
+                    $markUsedSql = "UPDATE PasswordResetTokens SET IsUsed = 1 WHERE ResetID = ?";
                     $markUsedParams = [$tokenID];
                     $markUsedStmt = sqlsrv_prepare($conn, $markUsedSql, $markUsedParams);
                     sqlsrv_execute($markUsedStmt);

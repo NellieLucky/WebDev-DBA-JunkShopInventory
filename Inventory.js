@@ -120,7 +120,7 @@ function renderInventoryTable(items = inventoryItems) {
             <td>${item.name}</td>
             <td>${item.category}</td>
             <td>${item.qtyType}</td>
-            <td>${item.quantity}${item.qtyType === 'Kilo' ? ' kg' : ' pieces'}</td>
+            <td>${item.quantity}${item.qtyType === 'by kilo' ? ' kg' : ' pieces'}</td>
             <td style="text-align: left;">₱${item.buyingPrice.toFixed(2)}</td>
             <td style="text-align: left;">₱${item.sellingPrice.toFixed(2)}</td>
             <td>${formatDate(item.dateAdded)}</td>
@@ -150,19 +150,21 @@ function formatDate(dateString) {
 // Update statistics
 function updateStats() {
     // Calculate total items
-    const TotalItems = inventoryItems.reduce((sum, item) => sum + item.quantity, 0);
+    const TotalItems = inventoryItems
+        .filter(item => item.qtyType === 'by piece')
+        .reduce((sum, item) => sum + item.quantity, 0);
     document.getElementById('TotalItems').textContent = TotalItems;
 
     // Calculate total weight (only for Kilo items)
     const TotalWeight = inventoryItems
-        .filter(item => item.qtyType === 'Kilo')
+        .filter(item => item.qtyType === 'by kilo')
         .reduce((sum, item) => sum + item.quantity, 0);
     document.getElementById('TotalWeight').textContent = `${TotalWeight} kg`;
 
-    // Calculate total value
-    const TotalValue = inventoryItems.reduce((sum, item) => 
+    // Calculate selling price
+    const TotalSellingPrice = inventoryItems.reduce((sum, item) => 
         sum + (item.quantity * item.sellingPrice), 0);
-    document.getElementById('TotalValue').textContent = `₱${TotalValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    document.getElementById('TotalSellingPrice').textContent = `₱${TotalSellingPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     // Update items count
     document.getElementById('itemsCount').textContent = `${inventoryItems.length} items found`;

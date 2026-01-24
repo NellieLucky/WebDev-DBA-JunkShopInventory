@@ -74,8 +74,8 @@ function renderTransactionRecords(records = transactionRecords) {
                 <td>${record.totalKilo} kg</td>
                 <td>₱${record.totalAmount.toFixed(2)}</td>
                 <td>
-                    <button class="action-btn view-btn" onclick="viewTransaction(${record.id})" title="View Details">
-                        📄
+                    <button class="action-btn view-btn" onclick="viewTransaction(${record.id})" title="View Receipt">
+                        🧾
                     </button>
                 </td>
             </tr>

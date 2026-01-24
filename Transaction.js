@@ -6,16 +6,36 @@ let currentEditId = null;
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    setupEventListeners();
-    updateSummary();
-    updateStockInfo();
-    loadInventoryItems();
+    console.log('Transaction page initialized');
+    try {
+        setupEventListeners();
+        updateSummary();
+        updateStockInfo();
+        loadInventoryItems();
+    } catch (error) {
+        console.error('Error initializing transaction page:', error);
+        showNotification('Error initializing page: ' + error.message, 'error');
+    }
 });
 
 // Setup all event listeners
 function setupEventListeners() {
-    // Operation type change
+    // Operation type change - RESET TABLE when changing operation
     document.getElementById('operationType').addEventListener('change', function() {
+        const newOperation = this.value;
+        
+        if (transactionItems.length > 0) {
+            if (!confirm('Changing operation type will clear the current transaction items. Continue?')) {
+                // Revert to previous operation
+                this.value = transactionItems[0]?.operation || '';
+                return;
+            }
+        }
+        
+        // Clear transaction
+        transactionItems = [];
+        renderTransactionTable();
+        updateSummary();
         updateOperationTitle();
     });
 
@@ -31,6 +51,12 @@ function setupEventListeners() {
     // Clear button
     document.getElementById('clearBtn').addEventListener('click', clearTransaction);
 
+    // Print button
+    const printBtn = document.getElementById('printBtn');
+    if (printBtn) {
+        printBtn.addEventListener('click', printTransaction);
+    }
+
     // Quantity input enter key
     document.getElementById('quantity').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
@@ -41,6 +67,16 @@ function setupEventListeners() {
 
 // Load inventory items from database
 function loadInventoryItems() {
+    const select = document.getElementById('itemSelect');
+    if (!select) {
+        console.error('Item select element not found');
+        return;
+    }
+    
+    // Show loading state
+    select.innerHTML = '<option value="">Loading items...</option>';
+    select.disabled = true;
+    
     fetch('transaction_api.php', {
         method: 'POST',
         headers: {
@@ -48,17 +84,27 @@ function loadInventoryItems() {
         },
         body: 'action=get_inventory'
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
-        if (data.success) {
+        select.disabled = false;
+        if (data.success && Array.isArray(data.data)) {
             populateItemSelect(data.data);
         } else {
-            showNotification('Failed to load inventory items', 'error');
+            select.innerHTML = '<option value="">Failed to load items</option>';
+            console.error('Failed to load inventory:', data);
+            showNotification(data.error || 'Failed to load inventory items', 'error');
         }
     })
     .catch(error => {
+        select.disabled = false;
+        select.innerHTML = '<option value="">Error loading items</option>';
         console.error('Error loading inventory:', error);
-        showNotification('Error loading inventory items', 'error');
+        showNotification('Error loading inventory items: ' + error.message, 'error');
     });
 }
 
@@ -68,22 +114,30 @@ function populateItemSelect(items) {
     // Clear existing options except the first one
     select.innerHTML = '<option value="">-- Select an Item --</option>';
 
+    if (items.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = 'No items available';
+        select.appendChild(option);
+        return;
+    }
+
     items.forEach(item => {
         const option = document.createElement('option');
         option.value = item.id;
         option.setAttribute('data-name', item.name);
         option.setAttribute('data-category', item.category);
         option.setAttribute('data-stock', item.quantity);
+        option.setAttribute('data-qty-type', item.qty_type || 'by piece');
         option.setAttribute('data-buying-price', item.buying_price);
         option.setAttribute('data-selling-price', item.selling_price);
-        option.setAttribute('data-type', determineQtyType(item.category));
         option.textContent = item.name;
         select.appendChild(option);
     });
 }
 
-// Setup all event listeners
-function setupEventListeners() {
+// Setup all event listeners (REMOVE DUPLICATE)
+function setupEventListeners_OLD() {
     // Operation type change
     document.getElementById('operationType').addEventListener('change', function() {
         updateOperationTitle();
@@ -138,8 +192,8 @@ function updateStockInfo() {
     
     if (selectedOption.value) {
         const stock = selectedOption.getAttribute('data-stock');
-        const qtyType = selectedOption.getAttribute('data-type');
-        const unit = qtyType === 'Kilo' ? 'kg' : 'pieces';
+        const qtyType = selectedOption.getAttribute('data-qty-type') || 'by piece';
+        const unit = (qtyType === 'by kilo' || qtyType === 'Kilo') ? ' kg' : ' pieces';
         stockInfo.textContent = `(There is ${stock}${unit} current stock)`;
     } else {
         stockInfo.textContent = '(Select an item to see stock)';
@@ -150,11 +204,11 @@ function updateStockInfo() {
 function addTransactionItem() {
     const operationType = document.getElementById('operationType').value;
     const itemSelect = document.getElementById('itemSelect');
-    const quantity = document.getElementById('quantity').value;
+    const quantity = parseInt(document.getElementById('quantity').value);
 
     // Validation
     if (!operationType) {
-        showNotification('Please select an operation type', 'error');
+        showNotification('Please select an operation type (Receiving or Dispatching)', 'error');
         return;
     }
 
@@ -170,20 +224,50 @@ function addTransactionItem() {
 
     // Get item data
     const selectedOption = itemSelect.options[itemSelect.selectedIndex];
-    const itemData = {
-        id: Date.now(), // Temporary ID for UI
-        itemId: itemSelect.value,
-        name: selectedOption.getAttribute('data-name'),
-        category: selectedOption.getAttribute('data-category'),
-        qtyType: determineQtyType(selectedOption.getAttribute('data-category')),
-        currentQty: parseInt(selectedOption.getAttribute('data-stock')),
-        exchangeQty: parseInt(quantity),
-        price: parseFloat(selectedOption.getAttribute('data-' + (operationType === 'receiving' ? 'buying' : 'selling') + '-price')),
-        amount: parseFloat(selectedOption.getAttribute('data-' + (operationType === 'receiving' ? 'buying' : 'selling') + '-price')) * parseInt(quantity)
-    };
+    const currentStock = parseInt(selectedOption.getAttribute('data-stock'));
+    const itemId = itemSelect.value;
+    const itemName = selectedOption.getAttribute('data-name');
 
-    // Add to local array for UI
-    transactionItems.push(itemData);
+    // DISPATCHING: Validate stock is available
+    if (operationType === 'dispatching') {
+        if (quantity > currentStock) {
+            showStockErrorPopup(itemName, currentStock);
+            return;
+        }
+    }
+
+    // Check if item already exists in cart
+    const existingItem = transactionItems.find(item => item.itemId === itemId);
+    
+    if (existingItem) {
+        if (operationType === 'dispatching') {
+            // DISPATCHING: Check if total would exceed stock
+            const totalQty = existingItem.exchangeQty + quantity;
+            if (totalQty > currentStock) {
+                showStockErrorPopup(itemName, currentStock);
+                return;
+            }
+        }
+        // RECEIVING or DISPATCHING with sufficient stock: Append quantity
+        existingItem.exchangeQty += quantity;
+        existingItem.amount = existingItem.price * existingItem.exchangeQty;
+    } else {
+        // New item - add to cart
+        const itemData = {
+            id: Date.now(),
+            itemId: itemId,
+            name: itemName,
+            category: selectedOption.getAttribute('data-category'),
+            qtyType: selectedOption.getAttribute('data-qty-type') || 'by kilo',
+            currentQty: currentStock,
+            exchangeQty: quantity,
+            price: parseFloat(selectedOption.getAttribute('data-' + (operationType === 'receiving' ? 'buying' : 'selling') + '-price')),
+            amount: 0,
+            operation: operationType
+        };
+        itemData.amount = itemData.price * itemData.exchangeQty;
+        transactionItems.push(itemData);
+    }
 
     // Update UI
     renderTransactionTable();
@@ -191,6 +275,8 @@ function addTransactionItem() {
 
     // Clear quantity input
     document.getElementById('quantity').value = '';
+    itemSelect.value = '';
+    updateStockInfo();
 
     showNotification('Item added successfully!', 'success');
 }
@@ -205,12 +291,14 @@ function renderTransactionTable() {
     }
     
     tbody.innerHTML = transactionItems.map(item => {
-        const unit = item.qtyType === 'Kilo' ? 'kg' : ' pieces';
+        const isKilo = item.qtyType === 'by kilo' || item.qtyType === 'Kilo';
+        const unit = isKilo ? ' kg' : ' pieces';
+        const displayQtyType = item.qtyType || 'by piece';
         return `
             <tr data-id="${item.id}">
                 <td>${item.name}</td>
                 <td>${item.category}</td>
-                <td>${item.qtyType}</td>
+                <td>${displayQtyType}</td>
                 <td>${item.currentQty}${unit}</td>
                 <td>${item.exchangeQty}${unit}</td>
                 <td>₱${item.price.toFixed(2)}</td>
@@ -228,10 +316,24 @@ function renderTransactionTable() {
 
 // Update summary
 function updateSummary() {
-    // Calculate total items
-    const totalItems = transactionItems.reduce((sum, item) => sum + item.exchangeQty, 0);
-    document.getElementById('totalItems').textContent = totalItems;
+    // Calculate total items by piece (items with qty_type 'by piece' or 'Piraso')
+    const totalPieceItems = transactionItems
+        .filter(item => {
+            const qtyType = item.qtyType || 'by piece';
+            return qtyType === 'by piece' || qtyType === 'Piraso';
+        })
+        .reduce((sum, item) => sum + item.exchangeQty, 0);
+    document.getElementById('totalPieceItems').textContent = totalPieceItems;
     
+    // Calculate total items by weight (items with qty_type 'by kilo' or 'Kilo')
+    const totalWeightItems = transactionItems
+        .filter(item => {
+            const qtyType = item.qtyType || 'by piece';
+            return qtyType === 'by kilo' || qtyType === 'Kilo';
+        })
+        .reduce((sum, item) => sum + item.exchangeQty, 0);
+    document.getElementById('totalWeightItems').textContent = totalWeightItems;
+
     // Calculate total value
     const totalValue = transactionItems.reduce((sum, item) => sum + item.amount, 0);
     document.getElementById('totalValue').textContent = `₱${totalValue.toFixed(2)}`;
@@ -288,8 +390,26 @@ function saveTransaction() {
         return;
     }
 
-    // Create transaction and add all items
-    createAndCompleteTransaction(operationType, customerName);
+    // Show confirmation dialog with list of items
+    showSaveConfirmation(operationType, customerName);
+}
+
+// Show confirmation dialog before saving
+function showSaveConfirmation(operationType, customerName) {
+    // Build list of items for confirmation
+    let itemsList = '';
+    transactionItems.forEach((item, index) => {
+        const unit = (item.qtyType === 'by kilo' || item.qtyType === 'Kilo') ? 'kg' : 'pieces';
+        itemsList += `${index + 1}. ${item.name} - ${item.exchangeQty} ${unit} - ₱${item.amount.toFixed(2)}\n`;
+    });
+
+    const totalValue = transactionItems.reduce((sum, item) => sum + item.amount, 0);
+    const message = `Are you sure you want to save this transaction? You can't modify these after saving.\n\nList of items:\n${itemsList}\nTotal Value: ₱${totalValue.toFixed(2)}`;
+
+    if (confirm(message)) {
+        // User confirmed, proceed with saving
+        createAndCompleteTransaction(operationType, customerName);
+    }
 }
 
 // Create transaction and add all items
@@ -370,12 +490,12 @@ function completeTransaction(transactionId, operationType, customerName) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Generate and show invoice
+            // Generate and show receipt/invoice
             generateInvoice(operationType, customerName, transactionId);
-            showNotification('Transaction completed successfully!', 'success');
+            showNotification('Transaction saved successfully!', 'success');
 
-            // Reset transaction UI without confirmation
-            resetTransactionUI();
+            // Reset transaction UI after showing receipt
+            // Don't reset immediately - let user close receipt first
         } else {
             showNotification('Failed to complete transaction: ' + (data.error || 'Unknown error'), 'error');
         }
@@ -425,23 +545,38 @@ function generateInvoice(operationType, customerName, transactionId) {
     document.getElementById('invoiceTo').textContent = customerName;
     document.getElementById('invoiceType').textContent = operationType.charAt(0).toUpperCase() + operationType.slice(1);
     
+    // Update price header based on operation type
+    const priceHeader = document.getElementById('invoicePriceHeader');
+    if (priceHeader) {
+        priceHeader.textContent = operationType === 'receiving' ? 'BUYING PRICE' : 'SELLING PRICE';
+    }
+    
     // Calculate quantities
     const qtyByPiece = transactionItems
-        .filter(item => item.qtyType === 'Piraso')
+        .filter(item => {
+            const qtyType = item.qtyType || 'by piece';
+            return qtyType === 'by piece' || qtyType === 'Piraso';
+        })
         .reduce((sum, item) => sum + item.exchangeQty, 0);
     
     const qtyByWeight = transactionItems
-        .filter(item => item.qtyType === 'Kilo')
+        .filter(item => {
+            const qtyType = item.qtyType || 'by piece';
+            return qtyType === 'by kilo' || qtyType === 'Kilo';
+        })
         .reduce((sum, item) => sum + item.exchangeQty, 0);
     
     document.getElementById('invoiceQtyPiece').textContent = qtyByPiece;
     document.getElementById('invoiceQtyWeight').textContent = qtyByWeight;
     document.getElementById('invoiceItems').textContent = transactionItems.length;
     
-    // Generate invoice table
+    // Generate invoice table - mirroring the transaction table
     const invoiceTableBody = document.getElementById('invoiceTableBody');
+    const priceLabel = operationType === 'receiving' ? 'BUYING PRICE' : 'SELLING PRICE';
+    
     invoiceTableBody.innerHTML = transactionItems.map(item => {
-        const unit = item.qtyType === 'Kilo' ? 'kg' : ' pieces';
+        const isKilo = item.qtyType === 'by kilo' || item.qtyType === 'Kilo';
+        const unit = isKilo ? ' kg' : ' pieces';
         return `
             <tr>
                 <td>${item.name}</td>
@@ -465,6 +600,8 @@ function generateInvoice(operationType, customerName, transactionId) {
 // Close invoice
 function closeInvoice() {
     document.getElementById('invoiceModal').classList.remove('active');
+    // Reset transaction UI after closing receipt
+    resetTransactionUI();
 }
 
 // Print invoice
@@ -524,5 +661,69 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Stock error popup
+function showStockErrorPopup(itemName, currentStock) {
+    alert(`${itemName}\n\nStocks is not enough\nCurrent Stock: ${currentStock}\n\nOK`);
+}
+
+// Print transaction function
+function printTransaction() {
+    if (transactionItems.length === 0) {
+        showNotification('No items to print', 'error');
+        return;
+    }
+
+    const operationType = document.getElementById('operationType').value;
+    const customerName = document.getElementById('customerName').value || 'Unknown Customer';
+    const printWindow = window.open('', '', 'height=600,width=800');
+    
+    let tableHTML = '<table border="1" cellpadding="10" style="width:100%;"><thead><tr><th>Item</th><th>Category</th><th>Qty Type</th><th>Current</th><th>Exchange</th><th>Price</th><th>Amount</th></tr></thead><tbody>';
+    
+    let total = 0;
+    transactionItems.forEach(item => {
+        tableHTML += `<tr>
+            <td>${item.name}</td>
+            <td>${item.category}</td>
+            <td>${item.qtyType}</td>
+            <td>${item.currentQty}</td>
+            <td>${item.exchangeQty}</td>
+            <td>₱${item.price.toFixed(2)}</td>
+            <td>₱${item.amount.toFixed(2)}</td>
+        </tr>`;
+        total += item.amount;
+    });
+
+    tableHTML += '</tbody></table>';
+
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Transaction Receipt</title>
+            <style>
+                body { font-family: Arial; margin: 20px; }
+                h2 { text-align: center; }
+                .info { margin: 20px 0; }
+                table { margin: 20px 0; }
+                .total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px; }
+            </style>
+        </head>
+        <body>
+            <h2>ScrapTrack Transaction Receipt</h2>
+            <div class="info">
+                <p><strong>Operation:</strong> ${operationType.toUpperCase()}</p>
+                <p><strong>Customer:</strong> ${customerName}</p>
+                <p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+            </div>
+            ${tableHTML}
+            <div class="total">
+                <p>Total Amount: ₱${total.toFixed(2)}</p>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+}
 
 console.log('ScrapTrack Transaction initialized successfully!');

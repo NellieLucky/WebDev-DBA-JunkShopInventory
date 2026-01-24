@@ -20,14 +20,14 @@ function getTransactionRecords() {
     global $conn;
 
     $sql = "SELECT
-                e.ExchangeID,
-                e.Exchange_Date,
-                e.Exchange_Type,
-                e.Total_No_Of_Items,
+                t.TransactionID,
+                t.Transaction_Date,
+                t.Transaction_Type,
+                t.Total_No_Of_Items,
                 c.Name AS CustomerName
-            FROM Exchange e
-            JOIN Customer c ON e.Customer_ID = c.CustomerID
-            ORDER BY e.Exchange_Date DESC";
+            FROM Transactions t
+            JOIN Customer c ON t.Customer_ID = c.CustomerID
+            ORDER BY t.Transaction_Date DESC";
 
     $stmt = sqlsrv_query($conn, $sql);
 
@@ -38,12 +38,12 @@ function getTransactionRecords() {
     $records = [];
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
         // Calculate totals for this transaction
-        $totals = calculateTransactionTotals($row['ExchangeID']);
+        $totals = calculateTransactionTotals($row['TransactionID']);
 
         $records[] = [
-            'id' => $row['ExchangeID'],
-            'date' => $row['Exchange_Date'] ? $row['Exchange_Date']->format('Y-m-d') : 'N/A',
-            'type' => strpos($row['Exchange_Type'], 'Purchase') !== false ? 'Received' : 'Dispatched',
+            'id' => $row['TransactionID'],
+            'date' => $row['Transaction_Date'] ? $row['Transaction_Date']->format('Y-m-d') : 'N/A',
+            'type' => $row['Transaction_Type'] === 'Purchase' ? 'Received' : 'Dispatched',
             'customer' => $row['CustomerName'],
             'noOfItems' => $row['Total_No_Of_Items'],
             'totalPiece' => $totals['pieces'],
@@ -55,20 +55,18 @@ function getTransactionRecords() {
     return ['success' => true, 'data' => $records];
 }
 
-function calculateTransactionTotals($exchangeId) {
+function calculateTransactionTotals($transactionId) {
     global $conn;
 
     $sql = "SELECT
-                ei.Quantity,
-                ei.PriceAtTime,
-                i.Item_Weight,
-                cat.Category_Name
-            FROM Exchanged_Items ei
-            JOIN Inventory i ON ei.Item_ID = i.ItemID
-            LEFT JOIN Categories cat ON i.CategoryID = cat.CategoryID
-            WHERE ei.Exchange_ID = ?";
+                ti.Quantity,
+                ti.PriceAtTime,
+                i.qty_type
+            FROM Transaction_Items ti
+            JOIN Inventory i ON ti.Item_ID = i.ItemID
+            WHERE ti.TransactionID = ?";
 
-    $stmt = sqlsrv_query($conn, $sql, [$exchangeId]);
+    $stmt = sqlsrv_query($conn, $sql, [$transactionId]);
 
     $pieces = 0;
     $kilos = 0;
@@ -77,9 +75,8 @@ function calculateTransactionTotals($exchangeId) {
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
         $amount += ($row['Quantity'] * $row['PriceAtTime']);
 
-        // Determine if it's counted by piece or kilo based on category
-        $weightCategories = ['Paper', 'Metals', 'Plastics'];
-        if ($row['Category_Name'] && in_array($row['Category_Name'], $weightCategories)) {
+        // Count based on qty_type from database
+        if ($row['qty_type'] === 'by kilo') {
             $kilos += $row['Quantity'];
         } else {
             $pieces += $row['Quantity'];
@@ -98,16 +95,16 @@ function getTransactionDetail($transactionId) {
 
     // Get transaction header
     $headerSql = "SELECT
-                    e.ExchangeID,
-                    e.Exchange_Date,
-                    e.Exchange_Type,
-                    e.Total_No_Of_Items,
+                    t.TransactionID,
+                    t.Transaction_Date,
+                    t.Transaction_Type,
+                    t.Total_No_Of_Items,
                     c.Name AS CustomerName,
                     m.FirstName AS EmployeeName
-                FROM Exchange e
-                JOIN Customer c ON e.Customer_ID = c.CustomerID
-                LEFT JOIN Management m ON e.Employee_ID = m.ManagementID
-                WHERE e.ExchangeID = ?";
+                FROM Transactions t
+                JOIN Customer c ON t.Customer_ID = c.CustomerID
+                LEFT JOIN Management m ON t.ManagementID = m.ManagementID
+                WHERE t.TransactionID = ?";
 
     $headerStmt = sqlsrv_query($conn, $headerSql, [$transactionId]);
 
@@ -119,13 +116,14 @@ function getTransactionDetail($transactionId) {
     $itemsSql = "SELECT
                     i.Item_Name,
                     cat.Category_Name,
-                    ei.Quantity,
-                    ei.PriceAtTime,
-                    (ei.Quantity * ei.PriceAtTime) as LineTotal
-                FROM Exchanged_Items ei
-                JOIN Inventory i ON ei.Item_ID = i.ItemID
+                    ti.Quantity,
+                    ti.PriceAtTime,
+                    i.qty_type,
+                    (ti.Quantity * ti.PriceAtTime) as LineTotal
+                FROM Transaction_Items ti
+                JOIN Inventory i ON ti.Item_ID = i.ItemID
                 LEFT JOIN Categories cat ON i.CategoryID = cat.CategoryID
-                WHERE ei.Exchange_ID = ?";
+                WHERE ti.TransactionID = ?";
 
     $itemsStmt = sqlsrv_query($conn, $itemsSql, [$transactionId]);
 
@@ -140,14 +138,14 @@ function getTransactionDetail($transactionId) {
             'category' => $item['Category_Name'] ?: 'Uncategorized',
             'quantity' => $item['Quantity'],
             'price' => $item['PriceAtTime'],
+            'qty_type' => $item['qty_type'] ?: 'by piece',
             'amount' => $item['LineTotal']
         ];
 
         $totalAmount += $item['LineTotal'];
 
-        // Categorize by weight vs pieces
-        $weightCategories = ['Paper', 'Metals', 'Plastics'];
-        if ($item['Category_Name'] && in_array($item['Category_Name'], $weightCategories)) {
+        // Count based on qty_type
+        if ($item['qty_type'] === 'by kilo') {
             $totalKilos += $item['Quantity'];
         } else {
             $totalPieces += $item['Quantity'];
@@ -157,9 +155,9 @@ function getTransactionDetail($transactionId) {
     return [
         'success' => true,
         'data' => [
-            'id' => $header['ExchangeID'],
-            'date' => $header['Exchange_Date'] ? $header['Exchange_Date']->format('Y-m-d') : 'N/A',
-            'type' => strpos($header['Exchange_Type'], 'Purchase') !== false ? 'Received' : 'Dispatched',
+            'id' => $header['TransactionID'],
+            'date' => $header['Transaction_Date'] ? $header['Transaction_Date']->format('Y-m-d') : 'N/A',
+            'type' => $header['Transaction_Type'] === 'Purchase' ? 'Received' : 'Dispatched',
             'customer' => $header['CustomerName'],
             'employee' => $header['EmployeeName'] ?: 'N/A',
             'noOfItems' => $header['Total_No_Of_Items'],
@@ -177,15 +175,15 @@ function searchTransactionRecords($search) {
     $searchTerm = '%' . $search . '%';
 
     $sql = "SELECT
-                e.ExchangeID,
-                e.Exchange_Date,
-                e.Exchange_Type,
-                e.Total_No_Of_Items,
+                t.TransactionID,
+                t.Transaction_Date,
+                t.Transaction_Type,
+                t.Total_No_Of_Items,
                 c.Name AS CustomerName
-            FROM Exchange e
-            JOIN Customer c ON e.Customer_ID = c.CustomerID
-            WHERE c.Name LIKE ? OR CAST(e.ExchangeID AS VARCHAR) LIKE ?
-            ORDER BY e.Exchange_Date DESC";
+            FROM Transactions t
+            JOIN Customer c ON t.Customer_ID = c.CustomerID
+            WHERE c.Name LIKE ? OR CAST(t.TransactionID AS VARCHAR) LIKE ?
+            ORDER BY t.Transaction_Date DESC";
 
     $stmt = sqlsrv_query($conn, $sql, [$searchTerm, $searchTerm]);
 
@@ -195,12 +193,12 @@ function searchTransactionRecords($search) {
 
     $records = [];
     while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-        $totals = calculateTransactionTotals($row['ExchangeID']);
+        $totals = calculateTransactionTotals($row['TransactionID']);
 
         $records[] = [
-            'id' => $row['ExchangeID'],
-            'date' => $row['Exchange_Date'] ? $row['Exchange_Date']->format('Y-m-d') : 'N/A',
-            'type' => strpos($row['Exchange_Type'], 'Purchase') !== false ? 'Received' : 'Dispatched',
+            'id' => $row['TransactionID'],
+            'date' => $row['Transaction_Date'] ? $row['Transaction_Date']->format('Y-m-d') : 'N/A',
+            'type' => $row['Transaction_Type'] === 'Purchase' ? 'Received' : 'Dispatched',
             'customer' => $row['CustomerName'],
             'noOfItems' => $row['Total_No_Of_Items'],
             'totalPiece' => $totals['pieces'],

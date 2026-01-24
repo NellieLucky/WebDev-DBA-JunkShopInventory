@@ -137,7 +137,7 @@ $inventoryData = getAllInventoryItems();
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="logo">
-            <img src="logo.png" alt="ScrapTrack Logo" class="logo-icon">
+            <img src="Logos-Icons/3.png" alt="ScrapTrack Logo" class="logo-icon">
             <span class="logo-text">ScrapTrack</span>
         </div>
 
@@ -180,7 +180,7 @@ $inventoryData = getAllInventoryItems();
         </nav>
 
         <div class="sidebar-footer">
-            <img src="logo.png" alt="ScrapTrack" class="footer-logo">
+            <img src="Logos-Icons/3.png" alt="ScrapTrack" class="footer-logo">
             <span class="footer-text">ScrapTrack</span>
         </div>
     </aside>
@@ -198,18 +198,18 @@ $inventoryData = getAllInventoryItems();
         <!-- Stats Cards -->
         <section class="stats-grid">
             <div class="stat-card">
-                <p class="stat-label">Total No. of Items</p>
+                <p class="stat-label">Total No. of Items (By Piece)</p>
                 <h2 class="stat-value" id="TotalItems"><?php echo $stats['TotalItems']; ?></h2>
             </div>
 
             <div class="stat-card">
-                <p class="stat-label">Total Weight of All Items</p>
+                <p class="stat-label">Total No. of Items (By Weight)</p>
                 <h2 class="stat-value" id="TotalWeight"><?php echo $stats['TotalWeight']; ?> kg</h2>
             </div>
 
             <div class="stat-card">
-                <p class="stat-label">Total Value</p>
-                <h2 class="stat-value" id="TotalValue">₱<?php echo number_format($stats['TotalValue'], 2); ?></h2>
+                <p class="stat-label">Total Selling Price</p>
+                <h2 class="stat-value" id="TotalSellingPrice">₱<?php echo number_format($stats['TotalSellingPrice'], 2); ?></h2>
             </div>
         </section>
 
@@ -217,7 +217,7 @@ $inventoryData = getAllInventoryItems();
         <section class="search-section">
             <div class="search-header">
                 <h3>Search Inventory</h3>
-                <p class="search-subtitle">Find items by name, category or description</p>
+                <p class="search-subtitle">Find items by name, category or quantity type</p>
             </div>
             
             <div class="search-bar-container">
@@ -311,19 +311,19 @@ $inventoryData = getAllInventoryItems();
                     </div>
                     <div class="form-group">
                         <label for="itemCategory">Category</label>
-                        <input type="text" id="itemCategory" name="category_name" required list="categories">
-                        <datalist id="categories">
+                        <select id="itemCategory" name="category_id" required>
+                            <option value="">Select Category</option>
                             <?php foreach ($categories as $cat): ?>
-                                <option value="<?= htmlspecialchars($cat['Category_Name']) ?>">
+                                <option value="<?= htmlspecialchars($cat['CategoryID']) ?>"><?= htmlspecialchars($cat['Category_Name']) ?></option>
                             <?php endforeach; ?>
-                        </datalist>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="qtyType">Quantity Type</label>
                         <select id="qtyType" name="qty_type" required>
                             <option value="">Select Type</option>
-                            <option value="Kilo">Kilo</option>
-                            <option value="Piraso">Piraso</option>
+                            <option value="by kilo">by kilo</option>
+                            <option value="by piece">by piece</option>
                         </select>
                     </div>
                     <div class="form-group">
